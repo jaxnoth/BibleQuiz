@@ -1,0 +1,15 @@
+{
+  "name": "bible-quiz",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gospel of John practice games for Bible quizzers",
+  "type": "module",
+  "scripts": {
+    "generate:data": "node scripts/generate-study-data.mjs",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

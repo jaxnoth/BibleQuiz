@@ -1,0 +1,18 @@
+{
+  "name": "Bible Quiz",
+  "short_name": "Bible Quiz",
+  "description": "Practice games for Bible quizzers studying the Gospel of John.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#dae4e8",
+  "theme_color": "#202833",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

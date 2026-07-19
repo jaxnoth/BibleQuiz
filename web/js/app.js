@@ -1,0 +1,1504 @@
+import {
+  cellsOnLine,
+  createBlankQuestion,
+  createJeopardyBoard,
+  createVerseScramble,
+  createWordSearch,
+  normalizeAnswer,
+} from './game-engine.js';
+import {
+  adaptiveShuffle,
+  addProfile,
+  availableAvatars,
+  deleteProfile,
+  exportProfile,
+  getActiveProfile,
+  importProfile,
+  loadProfileStore,
+  profileSummary,
+  recordActivity,
+  recordGameSession,
+  renameProfile,
+  saveProfileStore,
+} from './progress-store.js';
+
+const app = document.querySelector('#app');
+const announcer = document.querySelector('#announcer');
+const homeButton = document.querySelector('[data-action="home"]');
+const profileSwitch = document.querySelector('#profile-switch');
+const params = new URLSearchParams(window.location.search);
+const storageKey = 'bibleQuiz.preferences';
+
+const state = {
+  data: null,
+  profileStore: null,
+  chapter: 'all',
+  flashcards: [],
+  flashIndex: 0,
+  flashRevealed: false,
+  flashDeck: 'memory',
+  jeopardy: null,
+  jeopardyMode: 'official',
+  teams: [0, 0],
+  wordSearch: null,
+  wordSearchStart: null,
+  foundWords: new Set(),
+  blank: null,
+  blankDifficulty: 'medium',
+  quizPractice: [],
+  quizPracticeIndex: 0,
+  quizPracticeRevealed: false,
+  quizPracticeFrom: 1,
+  quizPracticeThrough: 5,
+  quizPracticeShuffle: true,
+  quizPracticeType: 'all',
+  quizPracticeMode: 'round',
+  quizPracticeResults: new Map(),
+  quizSessionRecorded: false,
+  buzzerTimer: null,
+  buzzerWordCount: 0,
+  buzzerRunning: false,
+  buzzerBuzzed: false,
+  speedTimer: null,
+  speedSeconds: 60,
+  speedRunning: false,
+  speedComplete: false,
+  scramble: null,
+  scrambleSelected: [],
+  situation: null,
+  situationRevealed: false,
+  situationScore: { correct: 0, total: 0 },
+};
+
+if (params.has('embed') || window.self !== window.top) {
+  document.body.classList.add('embedded');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function announce(message) {
+  announcer.textContent = '';
+  window.setTimeout(() => {
+    announcer.textContent = message;
+  }, 30);
+}
+
+function activeProfile() {
+  return getActiveProfile(state.profileStore);
+}
+
+function persistProfiles() {
+  try {
+    saveProfileStore(state.profileStore);
+    renderProfileSwitch();
+  } catch (error) {
+    console.error(error);
+    announce('Progress could not be saved on this device.');
+  }
+}
+
+function renderProfileSwitch() {
+  const activeId = state.profileStore?.activeProfileId;
+  profileSwitch.innerHTML = state.profileStore.profiles
+    .map(
+      (profile) =>
+        `<option value="${escapeHtml(profile.id)}"${profile.id === activeId ? ' selected' : ''}>${escapeHtml(profile.avatar)} ${escapeHtml(profile.name)}</option>`,
+    )
+    .join('');
+}
+
+function trackActivity(activity) {
+  recordActivity(activeProfile(), activity);
+  persistProfiles();
+}
+
+function resetPersonalizedGameState() {
+  state.quizPractice = [];
+  state.quizPracticeResults = new Map();
+  state.flashcards = [];
+  state.blank = null;
+  state.wordSearch = null;
+  state.scramble = null;
+  state.situation = null;
+  state.situationScore = { correct: 0, total: 0 };
+}
+
+function savePreferences() {
+  localStorage.setItem(storageKey, JSON.stringify({ chapter: state.chapter }));
+}
+
+function loadPreferences() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey));
+    if (stored?.chapter === 'all' || state.data.metadata.enabledChapters.includes(Number(stored?.chapter))) {
+      state.chapter = String(stored.chapter);
+    }
+  } catch {
+    localStorage.removeItem(storageKey);
+  }
+}
+
+function filteredData() {
+  if (state.chapter === 'all') {
+    return {
+      memoryVerses: state.data.memoryVerses,
+      uniqueWords: state.data.uniqueWords,
+    };
+  }
+  const chapter = Number(state.chapter);
+  return {
+    memoryVerses: state.data.memoryVerses.filter((verse) => verse.chapter === chapter),
+    uniqueWords: state.data.uniqueWords.filter((record) => record.chapter === chapter),
+  };
+}
+
+function filteredQuizQuestions() {
+  if (state.chapter === 'all') return state.data.quizQuestions;
+  return state.data.quizQuestions.filter(({ chapter }) => chapter === Number(state.chapter));
+}
+
+function chapterLabel() {
+  return state.chapter === 'all' ? 'John 1-5' : `John ${state.chapter}`;
+}
+
+function renderGameHeader(title, description) {
+  return `
+    <div class="game-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(chapterLabel())}</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p class="game-meta">${escapeHtml(description)}</p>
+      </div>
+      <button class="button-secondary" type="button" data-action="home">All games</button>
+    </div>
+  `;
+}
+
+function chapterOptions() {
+  return `
+    <option value="all"${state.chapter === 'all' ? ' selected' : ''}>John 1-5</option>
+    ${state.data.metadata.enabledChapters
+      .map(
+        (chapter) =>
+          `<option value="${chapter}"${state.chapter === String(chapter) ? ' selected' : ''}>John ${chapter}</option>`,
+      )
+      .join('')}
+  `;
+}
+
+function renderHome() {
+  const games = [
+    ['quiz-practice', 'Q', 'Quiz Practice', 'Practice a 20-question round or continue without a limit.'],
+    ['flashcards', '▣', 'Flash Cards', 'Review memory verses or official quiz questions.'],
+    ['jeopardy', '★', 'Jeopardy', 'Play with official questions or study-drill categories.'],
+    ['word-search', '⌕', 'Word Search', 'Find selected unique words hidden in a puzzle.'],
+    ['fill-blank', '✎', 'Fill in the Blank', 'Restore missing words in memory verses.'],
+    ['verse-scramble', '↕', 'Verse Scramble', 'Arrange shuffled phrases into the correct memory verse.'],
+    ['situation-challenge', '!', 'Situation Challenge', 'Practice who said it, to whom, when, and where.'],
+  ];
+  const { memoryVerses, uniqueWords } = filteredData();
+
+  app.innerHTML = `
+    <section class="hero">
+      <p class="eyebrow">2026-27 Quiz Season</p>
+      <h1>Ready to practice?</h1>
+      <p class="lead">
+        Choose a game, select your chapter range, and sharpen your knowledge of the Gospel of John.
+      </p>
+      <div class="toolbar">
+        <label class="field">
+          Study chapters
+          <select id="chapter-filter">${chapterOptions()}</select>
+        </label>
+        <div class="game-meta">
+          ${memoryVerses.length} memory verses <span aria-hidden="true">•</span>
+          ${uniqueWords.length} unique words
+        </div>
+      </div>
+    </section>
+    <section class="game-grid" aria-label="Practice games">
+      ${games
+        .map(
+          ([route, icon, title, description]) => `
+            <article class="game-card">
+              <span class="game-card-icon" aria-hidden="true">${icon}</span>
+              <h2>${title}</h2>
+              <p>${description}</p>
+              <button type="button" data-route="${route}">Play ${title}</button>
+            </article>
+          `,
+        )
+        .join('')}
+    </section>
+  `;
+  homeButton.hidden = true;
+}
+
+function avatarOptions(selected) {
+  return availableAvatars()
+    .map(
+      (avatar) =>
+        `<option value="${avatar}"${avatar === selected ? ' selected' : ''}>${avatar}</option>`,
+    )
+    .join('');
+}
+
+function statLine(label, stats = {}) {
+  const accuracy = stats.attempts ? Math.round(((stats.correct ?? 0) / stats.attempts) * 100) : 0;
+  return `
+    <div class="progress-line">
+      <span>${escapeHtml(label)}</span>
+      <span>${stats.attempts ?? 0} attempts <span aria-hidden="true">•</span> ${accuracy}%</span>
+    </div>
+  `;
+}
+
+function renderProgressDashboard(message = '', messageType = 'success') {
+  const profile = activeProfile();
+  const summary = profileSummary(profile);
+  const weakQuestions = summary.weakQuestions
+    .map((record) => ({
+      ...record,
+      question: state.data.quizQuestions.find(({ id }) => id === record.id),
+    }))
+    .filter(({ question }) => question);
+  const weakVerses = summary.weakVerses
+    .map((record) => ({
+      ...record,
+      verse: state.data.memoryVerses.find(({ reference }) => reference === record.reference),
+    }))
+    .filter(({ verse }) => verse);
+  const chapterLines = state.data.metadata.enabledChapters
+    .map((chapter) => statLine(`John ${chapter}`, profile.stats.byChapter[chapter]))
+    .join('');
+  const typeNames = {
+    A: 'According To',
+    G: 'General',
+    Q: 'Quote',
+    S: 'Situation',
+    X: 'Reference',
+  };
+  const typeLines = Object.entries(typeNames)
+    .map(([code, name]) => statLine(name, profile.stats.byQuestionType[code]))
+    .join('');
+  const speedBest = profile.stats.games?.speed?.bestScore ?? 0;
+  const buzzerTotals = Object.values(profile.content.questions).reduce(
+    (totals, record) => ({
+      words: totals.words + (record.buzzerWordsTotal ?? 0),
+      attempts: totals.attempts + (record.buzzerAttempts ?? 0),
+    }),
+    { words: 0, attempts: 0 },
+  );
+  const buzzerAverage = buzzerTotals.attempts
+    ? Math.round(buzzerTotals.words / buzzerTotals.attempts)
+    : 0;
+
+  app.innerHTML = `
+    ${renderGameHeader('My Progress', 'Your activity stays on this device and customizes future practice.')}
+    ${message ? `<p class="notice ${messageType}">${escapeHtml(message)}</p>` : ''}
+    <section class="metric-grid" aria-label="Progress summary">
+      <article class="metric-card"><strong>${summary.attempts}</strong><span>Attempts</span></article>
+      <article class="metric-card"><strong>${summary.accuracy}%</strong><span>Accuracy</span></article>
+      <article class="metric-card"><strong>${summary.review}</strong><span>Needs review</span></article>
+      <article class="metric-card"><strong>${summary.streakDays}</strong><span>Day streak</span></article>
+      <article class="metric-card"><strong>${speedBest}</strong><span>Speed best</span></article>
+      <article class="metric-card"><strong>${buzzerAverage}</strong><span>Average buzz words</span></article>
+    </section>
+
+    <div class="progress-grid">
+      <section class="panel">
+        <h2>By chapter</h2>
+        ${chapterLines}
+      </section>
+      <section class="panel">
+        <h2>By question type</h2>
+        ${typeLines}
+      </section>
+    </div>
+
+    <section class="panel progress-section">
+      <h2>Items to review</h2>
+      ${
+        weakQuestions.length || weakVerses.length
+          ? `<div class="progress-grid">
+              <div>
+                <h3>Questions</h3>
+                ${
+                  weakQuestions.length
+                    ? `<ol class="review-list">
+              ${weakQuestions
+                .map(
+                  ({ question, mastery }) => `
+                    <li>
+                      <span>${escapeHtml(question.question)}</span>
+                      <small>${escapeHtml(question.reference)} - ${Math.round(mastery * 100)}% mastery</small>
+                    </li>
+                  `,
+                )
+                .join('')}
+                      </ol>`
+                    : '<p class="game-meta">No question reviews yet.</p>'
+                }
+              </div>
+              <div>
+                <h3>Memory verses</h3>
+                ${
+                  weakVerses.length
+                    ? `<ol class="review-list">
+                        ${weakVerses
+                          .map(
+                            ({ verse, mastery }) => `
+                              <li>
+                                <span>${escapeHtml(verse.reference)}</span>
+                                <small>${Math.round(mastery * 100)}% mastery</small>
+                              </li>
+                            `,
+                          )
+                          .join('')}
+                      </ol>`
+                    : '<p class="game-meta">No verse reviews yet.</p>'
+                }
+              </div>
+            </div>`
+          : '<p class="game-meta">Questions and verses marked for review will appear here.</p>'
+      }
+    </section>
+
+    <section class="panel progress-section">
+      <h2>Manage ${escapeHtml(profile.avatar)} ${escapeHtml(profile.name)}</h2>
+      <div class="toolbar">
+        <label class="field">
+          Profile name
+          <input id="profile-name" type="text" maxlength="40" value="${escapeHtml(profile.name)}">
+        </label>
+        <label class="field">
+          Avatar
+          <select id="profile-avatar">${avatarOptions(profile.avatar)}</select>
+        </label>
+        <button type="button" data-action="profile-save">Save profile</button>
+      </div>
+      <div class="controls">
+        <button type="button" data-action="profile-export">Export profile</button>
+        <label class="button button-secondary import-button">
+          Import profile
+          <input id="profile-import" class="sr-only" type="file" accept="application/json,.json">
+        </label>
+        <button type="button" class="button-danger" data-action="profile-delete">Delete profile</button>
+      </div>
+    </section>
+
+    <section class="panel progress-section">
+      <h2>Add another player</h2>
+      <div class="toolbar">
+        <label class="field">
+          Player name
+          <input id="new-profile-name" type="text" maxlength="40" placeholder="Player name">
+        </label>
+        <label class="field">
+          Avatar
+          <select id="new-profile-avatar">${avatarOptions(availableAvatars()[1])}</select>
+        </label>
+        <button type="button" data-action="profile-add">Add profile</button>
+      </div>
+    </section>
+  `;
+}
+
+function quizPracticeChapterOptions(selected) {
+  return state.data.metadata.enabledChapters
+    .map(
+      (chapter) =>
+        `<option value="${chapter}"${chapter === selected ? ' selected' : ''}>John ${chapter}</option>`,
+    )
+    .join('');
+}
+
+function quizPracticeQuestionPool() {
+  const firstChapter = Math.min(state.quizPracticeFrom, state.quizPracticeThrough);
+  const lastChapter = Math.max(state.quizPracticeFrom, state.quizPracticeThrough);
+  state.quizPracticeFrom = firstChapter;
+  state.quizPracticeThrough = lastChapter;
+  const questions = state.data.quizQuestions.filter(
+    ({ chapter, typeCode }) =>
+      chapter >= firstChapter &&
+      chapter <= lastChapter &&
+      (state.quizPracticeType === 'all' || typeCode === state.quizPracticeType),
+  );
+  return state.quizPracticeShuffle
+    ? adaptiveShuffle(questions, 'questions', activeProfile())
+    : [...questions];
+}
+
+function stopBuzzerReader() {
+  if (state.buzzerTimer) window.clearInterval(state.buzzerTimer);
+  state.buzzerTimer = null;
+  state.buzzerRunning = false;
+}
+
+function stopSpeedTimer() {
+  if (state.speedTimer) window.clearInterval(state.speedTimer);
+  state.speedTimer = null;
+  state.speedRunning = false;
+}
+
+function resetQuestionPresentation() {
+  stopBuzzerReader();
+  state.quizPracticeRevealed = false;
+  state.buzzerWordCount = 0;
+  state.buzzerBuzzed = false;
+}
+
+function moveQuizPractice(direction) {
+  if (
+    direction === 1 &&
+    ['continuous', 'speed'].includes(state.quizPracticeMode) &&
+    state.quizPracticeIndex === state.quizPractice.length - 1
+  ) {
+    state.quizPractice.push(...quizPracticeQuestionPool());
+  }
+  state.quizPracticeIndex = Math.max(
+    0,
+    Math.min(state.quizPractice.length - 1, state.quizPracticeIndex + direction),
+  );
+  resetQuestionPresentation();
+}
+
+function startBuzzerReader() {
+  const question = state.quizPractice[state.quizPracticeIndex];
+  const words = question.question.split(' ');
+  state.buzzerWordCount = 1;
+  state.buzzerRunning = true;
+  state.buzzerBuzzed = false;
+  state.buzzerTimer = window.setInterval(() => {
+    state.buzzerWordCount += 1;
+    const questionElement = document.querySelector('#practice-question');
+    if (questionElement) {
+      questionElement.textContent = words.slice(0, state.buzzerWordCount).join(' ');
+    }
+    if (state.buzzerWordCount >= words.length) {
+      stopBuzzerReader();
+      state.buzzerBuzzed = true;
+      renderQuizPractice();
+      announce('The full question has been read.');
+    }
+  }, 450);
+  renderQuizPractice();
+}
+
+function startSpeedRound() {
+  state.speedRunning = true;
+  state.speedComplete = false;
+  state.speedTimer = window.setInterval(() => {
+    state.speedSeconds -= 1;
+    const timerElement = document.querySelector('#speed-timer');
+    if (timerElement) timerElement.textContent = state.speedSeconds;
+    if (state.speedSeconds <= 0) {
+      stopSpeedTimer();
+      state.speedComplete = true;
+      state.quizPracticeRevealed = false;
+      const score = [...state.quizPracticeResults.values()].filter(
+        (result) => result === 'correct',
+      ).length;
+      recordGameSession(activeProfile(), 'speed', score);
+      persistProfiles();
+      renderQuizPractice();
+      announce('Time is up.');
+    }
+  }, 1000);
+  renderQuizPractice();
+  announce('Speed round started.');
+}
+
+function prepareQuizPractice() {
+  stopBuzzerReader();
+  stopSpeedTimer();
+  const orderedQuestions = quizPracticeQuestionPool();
+  state.quizPractice =
+    ['round', 'buzzer'].includes(state.quizPracticeMode)
+      ? orderedQuestions.slice(0, 20)
+      : orderedQuestions;
+  state.quizPracticeIndex = 0;
+  resetQuestionPresentation();
+  state.speedSeconds = 60;
+  state.speedComplete = false;
+  state.quizPracticeResults = new Map();
+  state.quizSessionRecorded = false;
+}
+
+function renderQuizPractice() {
+  if (!state.quizPractice.length) prepareQuizPractice();
+  const question = state.quizPractice[state.quizPracticeIndex];
+  const results = [...state.quizPracticeResults.values()];
+  const correct = results.filter((result) => result === 'correct').length;
+  const needsReview = results.filter((result) => result === 'review').length;
+  const isBuzzer = state.quizPracticeMode === 'buzzer';
+  const isSpeed = state.quizPracticeMode === 'speed';
+  const currentResult = question
+    ? state.quizPracticeResults.get(`${state.quizPracticeIndex}:${question.id}`)
+    : null;
+  const questionWords = question?.question.split(' ') ?? [];
+  const displayedQuestion =
+    isBuzzer && !state.quizPracticeRevealed
+      ? questionWords.slice(0, state.buzzerWordCount).join(' ') ||
+        'Press Start reading when you are ready.'
+      : question?.question;
+  const scoredQuestionControls = `
+    <button type="button" data-action="quiz-practice-reveal" ${
+      state.quizPracticeRevealed || (isBuzzer && !state.buzzerBuzzed) || (isSpeed && !state.speedRunning)
+        ? 'disabled'
+        : ''
+    }>Reveal answer</button>
+    <button type="button" data-action="quiz-practice-correct" ${state.quizPracticeRevealed && !currentResult ? '' : 'disabled'}>I got it</button>
+    <button type="button" class="button-accent" data-action="quiz-practice-review" ${state.quizPracticeRevealed && !currentResult ? '' : 'disabled'}>Needs review</button>
+  `;
+
+  app.innerHTML = `
+    ${renderGameHeader('Quiz Practice', 'Answer each question aloud, reveal the answer, and score yourself.')}
+    <section class="panel">
+      <div class="toolbar">
+        <label class="field">
+          From chapter
+          <select id="quiz-practice-from">${quizPracticeChapterOptions(state.quizPracticeFrom)}</select>
+        </label>
+        <label class="field">
+          Through chapter
+          <select id="quiz-practice-through">${quizPracticeChapterOptions(state.quizPracticeThrough)}</select>
+        </label>
+        <label class="field">
+          Question type
+          <select id="quiz-practice-type">
+            <option value="all"${state.quizPracticeType === 'all' ? ' selected' : ''}>All official types</option>
+            <option value="A"${state.quizPracticeType === 'A' ? ' selected' : ''}>According To</option>
+            <option value="G"${state.quizPracticeType === 'G' ? ' selected' : ''}>General</option>
+            <option value="Q"${state.quizPracticeType === 'Q' ? ' selected' : ''}>Quote</option>
+            <option value="S"${state.quizPracticeType === 'S' ? ' selected' : ''}>Situation</option>
+            <option value="X"${state.quizPracticeType === 'X' ? ' selected' : ''}>Reference</option>
+          </select>
+        </label>
+        <label class="field">
+          Question order
+          <select id="quiz-practice-order">
+            <option value="chapter"${state.quizPracticeShuffle ? '' : ' selected'}>Chapter order</option>
+            <option value="shuffle"${state.quizPracticeShuffle ? ' selected' : ''}>Shuffled</option>
+          </select>
+        </label>
+        <label class="field">
+          Practice mode
+          <select id="quiz-practice-mode">
+            <option value="round"${state.quizPracticeMode === 'round' ? ' selected' : ''}>20-question round</option>
+            <option value="continuous"${state.quizPracticeMode === 'continuous' ? ' selected' : ''}>Continuous</option>
+            <option value="buzzer"${state.quizPracticeMode === 'buzzer' ? ' selected' : ''}>Buzzer practice</option>
+            <option value="speed"${state.quizPracticeMode === 'speed' ? ' selected' : ''}>60-second speed round</option>
+          </select>
+        </label>
+        <button type="button" data-action="quiz-practice-start">Start</button>
+      </div>
+      <p class="notice">Using the supplied official quiz question banks.</p>
+      ${
+        question
+          ? `
+            <div class="status-row">
+              <span>Question ${state.quizPracticeIndex + 1}${['round', 'buzzer'].includes(state.quizPracticeMode) ? ` of ${state.quizPractice.length}` : ''}</span>
+              <span>Correct: ${correct} <span aria-hidden="true">•</span> Review: ${needsReview}</span>
+            </div>
+            <div class="center">
+              <p class="eyebrow">${escapeHtml(question.type)} <span aria-hidden="true">•</span> John ${question.chapter}</p>
+              ${isSpeed ? `<p id="speed-timer" class="practice-timer" aria-live="polite">${state.speedSeconds}</p>` : ''}
+              <h2 id="practice-question" class="question-text">${escapeHtml(displayedQuestion)}</h2>
+              <div id="quiz-practice-answer" ${state.quizPracticeRevealed ? '' : 'hidden'}>
+                ${isBuzzer ? `<p class="game-meta">Full question: ${escapeHtml(question.question)}</p>` : ''}
+                <p class="eyebrow">Answer</p>
+                <p class="question-text">${escapeHtml(question.answer)}</p>
+                <p class="game-meta">${escapeHtml(question.reference)}</p>
+              </div>
+              ${
+                isBuzzer
+                  ? `<div class="controls">
+                      <button type="button" data-action="buzzer-start" ${state.buzzerRunning || state.buzzerBuzzed ? 'disabled' : ''}>Start reading</button>
+                      <button type="button" class="button-accent buzzer-button" data-action="buzzer-buzz" ${state.buzzerRunning ? '' : 'disabled'}>Buzz!</button>
+                    </div>`
+                  : ''
+              }
+              ${
+                isSpeed
+                  ? `<div class="controls">
+                      <button type="button" data-action="speed-start" ${state.speedRunning || state.speedComplete ? 'disabled' : ''}>Start 60 seconds</button>
+                    </div>`
+                  : ''
+              }
+              <div class="controls">
+                ${scoredQuestionControls}
+              </div>
+              <div class="controls">
+                <button type="button" class="button-secondary" data-action="quiz-practice-prev" ${state.quizPracticeIndex === 0 ? 'disabled' : ''}>Previous</button>
+                <button type="button" class="button-secondary" data-action="quiz-practice-next" ${
+                  ['round', 'buzzer'].includes(state.quizPracticeMode) &&
+                  state.quizPracticeIndex >= state.quizPractice.length - 1
+                    ? 'disabled'
+                    : isSpeed && !state.speedRunning
+                      ? 'disabled'
+                      : ''
+                }>Next question</button>
+              </div>
+            </div>
+          `
+          : '<p class="notice error">No questions are available for this chapter range.</p>'
+      }
+    </section>
+  `;
+}
+
+function prepareFlashcards() {
+  const cards =
+    state.flashDeck === 'questions' ? filteredQuizQuestions() : filteredData().memoryVerses;
+  state.flashcards = adaptiveShuffle(
+    cards,
+    state.flashDeck === 'questions' ? 'questions' : 'verses',
+    activeProfile(),
+  );
+  state.flashIndex = 0;
+  state.flashRevealed = false;
+}
+
+function renderFlashcards() {
+  if (!state.flashcards.length) prepareFlashcards();
+  const card = state.flashcards[state.flashIndex];
+  const isQuestion = state.flashDeck === 'questions';
+  const front = isQuestion
+    ? `<span class="flashcard-content">
+        <span class="flashcard-type">${escapeHtml(card.type)}</span>
+        <span class="flashcard-text">${escapeHtml(card.question)}</span>
+        <span class="game-meta">Tap to reveal the answer</span>
+      </span>`
+    : `<span class="flashcard-content">
+        <span class="flashcard-reference">${escapeHtml(card.reference)}</span>
+        <span class="game-meta">Tap to reveal the verse</span>
+      </span>`;
+  const back = isQuestion
+    ? `<span class="flashcard-content">
+        <span class="flashcard-answer">${escapeHtml(card.answer)}</span>
+        <span class="flashcard-answer-reference">${escapeHtml(card.reference)}</span>
+      </span>`
+    : `<span class="flashcard-content">
+        <span class="flashcard-text">${escapeHtml(card.text)}</span>
+        <span class="flashcard-jump">Jump words: ${escapeHtml(card.jumpWords)}</span>
+      </span>`;
+  app.innerHTML = `
+    ${renderGameHeader('Flash Cards', 'Practice memory verses or official quiz questions.')}
+    <div class="toolbar">
+      <label class="field">
+        Card deck
+        <select id="flash-deck">
+          <option value="memory"${isQuestion ? '' : ' selected'}>Memory verses</option>
+          <option value="questions"${isQuestion ? ' selected' : ''}>Official questions</option>
+        </select>
+      </label>
+    </div>
+    <div class="status-row">
+      <span>Card ${state.flashIndex + 1} of ${state.flashcards.length}</span>
+      <span>${escapeHtml(card.reference)}</span>
+    </div>
+    <button class="flashcard" type="button" data-action="flip" aria-pressed="${state.flashRevealed}">
+      ${state.flashRevealed ? back : front}
+    </button>
+    <div class="controls">
+      <button type="button" class="button-secondary" data-action="flash-prev">Previous</button>
+      <button type="button" data-action="flip">${state.flashRevealed ? 'Hide' : 'Reveal'} ${isQuestion ? 'answer' : 'verse'}</button>
+      <button type="button" data-action="flash-correct">Got it</button>
+      <button type="button" class="button-accent" data-action="flash-practice">Needs practice</button>
+      <button type="button" class="button-secondary" data-action="flash-next">Next</button>
+      <button type="button" class="button-secondary" data-action="flash-shuffle">Shuffle</button>
+    </div>
+  `;
+}
+
+function newBlank() {
+  const verses = adaptiveShuffle(filteredData().memoryVerses, 'verses', activeProfile());
+  state.blank = createBlankQuestion(
+    verses[0],
+    state.blankDifficulty,
+  );
+}
+
+function renderFillBlank() {
+  if (!state.blank) newBlank();
+  const { verse, words, answers } = state.blank;
+  app.innerHTML = `
+    ${renderGameHeader('Fill in the Blank', 'Type each missing word, then check your answer.')}
+    <section class="panel center">
+      <div class="toolbar">
+        <label class="field">
+          Difficulty
+          <select id="blank-difficulty">
+            <option value="easy"${state.blankDifficulty === 'easy' ? ' selected' : ''}>Easy</option>
+            <option value="medium"${state.blankDifficulty === 'medium' ? ' selected' : ''}>Medium</option>
+            <option value="hard"${state.blankDifficulty === 'hard' ? ' selected' : ''}>Hard</option>
+          </select>
+        </label>
+        <button type="button" data-action="blank-new">New verse</button>
+      </div>
+      <p class="eyebrow">${escapeHtml(verse.reference)}</p>
+      <div class="blank-verse">
+        ${words
+          .map((word, index) =>
+            answers.has(index)
+              ? `<label>
+                  <span class="sr-only">Missing word ${index + 1}</span>
+                  <input class="blank-input" type="text" data-blank-index="${index}" autocomplete="off">
+                </label>`
+              : escapeHtml(word),
+          )
+          .join(' ')}
+      </div>
+      <div id="blank-result" aria-live="polite"></div>
+      <div class="controls">
+        <button type="button" data-action="blank-check">Check answers</button>
+        <button type="button" class="button-secondary" data-action="blank-hint">Give a hint</button>
+        <button type="button" class="button-secondary" data-action="blank-reveal">Reveal answer</button>
+      </div>
+    </section>
+  `;
+}
+
+function newJeopardy() {
+  const { memoryVerses, uniqueWords } = filteredData();
+  state.jeopardy = createJeopardyBoard(
+    memoryVerses,
+    uniqueWords,
+    filteredQuizQuestions(),
+    state.jeopardyMode,
+  );
+  state.teams = [0, 0];
+}
+
+function renderJeopardy() {
+  if (!state.jeopardy) newJeopardy();
+  const cells = [];
+  state.jeopardy.forEach((category) => {
+    cells.push(`<div class="category">${escapeHtml(category.name)}</div>`);
+  });
+  for (let row = 0; row < 5; row += 1) {
+    state.jeopardy.forEach((category, column) => {
+      const clue = category.clues[row];
+      cells.push(`
+        <button
+          class="clue-tile${clue.used ? ' used' : ''}"
+          type="button"
+          data-jeopardy-column="${column}"
+          data-jeopardy-row="${row}"
+          ${clue.used ? 'disabled' : ''}
+        >${clue.value}</button>
+      `);
+    });
+  }
+  app.innerHTML = `
+    ${renderGameHeader('Jeopardy', 'Select a value, read the clue, and award points to a team.')}
+    <section class="panel">
+      <div class="toolbar">
+        <label class="field">
+          Board type
+          <select id="jeopardy-mode">
+            <option value="official"${state.jeopardyMode === 'official' ? ' selected' : ''}>Official questions</option>
+            <option value="drills"${state.jeopardyMode === 'drills' ? ' selected' : ''}>Study drills</option>
+          </select>
+        </label>
+        <button type="button" data-action="jeopardy-reset">Create board</button>
+      </div>
+      <div class="jeopardy-board">${cells.join('')}</div>
+      <div class="team-scores">
+        ${state.teams
+          .map(
+            (score, index) => `
+              <div class="team">
+                Team ${index + 1}
+                <strong>${score}</strong>
+                <div class="team-actions">
+                  <button type="button" aria-label="Subtract 100 from Team ${index + 1}" data-team="${index}" data-score="-100">-</button>
+                  <button type="button" aria-label="Add 100 to Team ${index + 1}" data-team="${index}" data-score="100">+</button>
+                </div>
+              </div>
+            `,
+          )
+          .join('')}
+      </div>
+      <div class="controls">
+        <button type="button" class="button-secondary" data-action="team-add" ${state.teams.length >= 4 ? 'disabled' : ''}>Add team</button>
+        <button type="button" class="button-secondary" data-action="team-remove" ${state.teams.length <= 2 ? 'disabled' : ''}>Remove team</button>
+        <button type="button" class="button-danger" data-action="jeopardy-reset">New board</button>
+      </div>
+    </section>
+  `;
+}
+
+function openClue(column, row) {
+  const clue = state.jeopardy[column].clues[row];
+  const backdrop = document.createElement('div');
+  backdrop.className = 'dialog-backdrop';
+  backdrop.innerHTML = `
+    <section class="clue-dialog" role="dialog" aria-modal="true" aria-labelledby="clue-title">
+      <p class="eyebrow">${escapeHtml(state.jeopardy[column].name)} for ${clue.value}</p>
+      <h2 id="clue-title" class="question-text">${escapeHtml(clue.clue)}</h2>
+      <div id="clue-answer" hidden>
+        <p class="eyebrow">Answer</p>
+        <p class="question-text">${escapeHtml(clue.answer)}</p>
+      </div>
+      <div class="controls">
+        <button type="button" data-action="clue-reveal">Reveal answer</button>
+        <button type="button" class="button-secondary" data-action="clue-close">Back to board</button>
+      </div>
+    </section>
+  `;
+  backdrop.dataset.column = column;
+  backdrop.dataset.row = row;
+  document.body.append(backdrop);
+  backdrop.querySelector('button').focus();
+}
+
+function wordSearchSettings() {
+  const difficulty = document.querySelector('#word-difficulty')?.value ?? 'medium';
+  return {
+    difficulty,
+    size: { easy: 11, medium: 14, hard: 17 }[difficulty],
+    count: { easy: 7, medium: 10, hard: 13 }[difficulty],
+  };
+}
+
+function newWordSearch() {
+  const { size, count } = wordSearchSettings();
+  const words = adaptiveShuffle(filteredData().uniqueWords, 'uniqueWords', activeProfile());
+  state.wordSearch = createWordSearch(words, size, count);
+  state.wordSearchStart = null;
+  state.foundWords = new Set();
+}
+
+function renderWordSearch() {
+  if (!state.wordSearch) newWordSearch();
+  const puzzle = state.wordSearch;
+  const foundCells = new Set();
+  puzzle.placements
+    .filter(({ word }) => state.foundWords.has(word))
+    .forEach(({ cells }) => cells.forEach(({ x, y }) => foundCells.add(`${x},${y}`)));
+  app.innerHTML = `
+    ${renderGameHeader('Word Search', 'Select the first and last letter of each hidden word.')}
+    <section class="panel">
+      <div class="toolbar">
+        <label class="field">
+          Difficulty
+          <select id="word-difficulty">
+            <option value="easy"${puzzle.size === 11 ? ' selected' : ''}>Easy</option>
+            <option value="medium"${puzzle.size === 14 ? ' selected' : ''}>Medium</option>
+            <option value="hard"${puzzle.size === 17 ? ' selected' : ''}>Hard</option>
+          </select>
+        </label>
+        <button type="button" data-action="word-new">New puzzle</button>
+        <button type="button" class="button-secondary" data-action="word-reveal">Reveal words</button>
+      </div>
+      <div class="word-search-layout">
+        <div
+          class="word-grid"
+          style="grid-template-columns: repeat(${puzzle.size}, 1fr)"
+          aria-label="Word search grid"
+        >
+          ${puzzle.grid
+            .flatMap((row, y) =>
+              row.map(
+                (letter, x) => `
+                  <button
+                    class="letter${foundCells.has(`${x},${y}`) ? ' found' : ''}"
+                    type="button"
+                    data-word-x="${x}"
+                    data-word-y="${y}"
+                    aria-label="${letter}, row ${y + 1}, column ${x + 1}"
+                  >${letter}</button>
+                `,
+              ),
+            )
+            .join('')}
+        </div>
+        <div>
+          <h2>Find these words</h2>
+          <ul class="word-list">
+            ${puzzle.placements
+              .map(
+                ({ word }) =>
+                  `<li class="${state.foundWords.has(word) ? 'found' : ''}">${escapeHtml(word)}</li>`,
+              )
+              .join('')}
+          </ul>
+          <p>${state.foundWords.size} of ${puzzle.placements.length} found</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function newVerseScramble() {
+  const verses = adaptiveShuffle(filteredData().memoryVerses, 'verses', activeProfile());
+  const verse = verses[0];
+  state.scramble = createVerseScramble(verse);
+  state.scrambleSelected = [];
+}
+
+function renderVerseScramble() {
+  if (!state.scramble) newVerseScramble();
+  const selected = new Set(state.scrambleSelected);
+  const selectedChunks = state.scrambleSelected.map((id) =>
+    state.scramble.chunks.find((chunk) => chunk.id === id),
+  );
+
+  app.innerHTML = `
+    ${renderGameHeader('Verse Scramble', 'Build the memory verse by selecting each phrase in order.')}
+    <section class="panel center">
+      <p class="eyebrow">${escapeHtml(state.scramble.verse.reference)}</p>
+      <div class="scramble-answer" aria-label="Your arranged verse">
+        ${
+          selectedChunks.length
+            ? selectedChunks
+                .map((chunk) => `<span class="scramble-piece placed">${escapeHtml(chunk.text)}</span>`)
+                .join('')
+            : '<span class="game-meta">Your verse will appear here.</span>'
+        }
+      </div>
+      <div class="scramble-pool" aria-label="Available verse phrases">
+        ${state.scramble.shuffled
+          .map(
+            (chunk) => `
+              <button
+                type="button"
+                class="scramble-piece"
+                data-scramble-chunk="${chunk.id}"
+                ${selected.has(chunk.id) ? 'disabled' : ''}
+              >${escapeHtml(chunk.text)}</button>
+            `,
+          )
+          .join('')}
+      </div>
+      <div id="scramble-result" aria-live="polite"></div>
+      <div class="controls">
+        <button type="button" data-action="scramble-check">Check verse</button>
+        <button type="button" class="button-secondary" data-action="scramble-undo" ${selectedChunks.length ? '' : 'disabled'}>Undo last</button>
+        <button type="button" class="button-secondary" data-action="scramble-reset">Start over</button>
+        <button type="button" class="button-accent" data-action="scramble-new">New verse</button>
+      </div>
+    </section>
+  `;
+}
+
+function newSituationChallenge() {
+  const questions = adaptiveShuffle(
+    filteredQuizQuestions().filter(({ typeCode }) => typeCode === 'S'),
+    'questions',
+    activeProfile(),
+  );
+  const candidates =
+    questions.length > 1
+      ? questions.filter((question) => question.id !== state.situation?.id)
+      : questions;
+  state.situation = candidates[Math.floor(Math.random() * candidates.length)];
+  state.situationRevealed = false;
+}
+
+function renderSituationChallenge() {
+  if (!state.situation) newSituationChallenge();
+  const question = state.situation;
+  app.innerHTML = `
+    ${renderGameHeader('Situation Challenge', 'Practice the people and circumstances surrounding quotations.')}
+    <section class="panel center">
+      <div class="status-row">
+        <span>${escapeHtml(chapterLabel())}</span>
+        <span>Score: ${state.situationScore.correct} / ${state.situationScore.total}</span>
+      </div>
+      <p class="eyebrow">Situation question</p>
+      <h2 class="question-text">${escapeHtml(question.question)}</h2>
+      <div ${state.situationRevealed ? '' : 'hidden'}>
+        <p class="eyebrow">Answer</p>
+        <p class="question-text">${escapeHtml(question.answer)}</p>
+        <p class="game-meta">${escapeHtml(question.reference)}</p>
+      </div>
+      <div class="controls">
+        <button type="button" data-action="situation-reveal" ${state.situationRevealed ? 'disabled' : ''}>Reveal answer</button>
+        <button type="button" data-action="situation-correct" ${state.situationRevealed ? '' : 'disabled'}>I got it</button>
+        <button type="button" class="button-accent" data-action="situation-review" ${state.situationRevealed ? '' : 'disabled'}>Needs review</button>
+        <button type="button" class="button-secondary" data-action="situation-next">Skip / next</button>
+      </div>
+    </section>
+  `;
+}
+
+function routeTo(route) {
+  if (route === 'questions') route = 'quiz-practice';
+  if (route !== 'quiz-practice') {
+    stopBuzzerReader();
+    stopSpeedTimer();
+  }
+  state.blank = null;
+  state.wordSearch = null;
+  state.jeopardy = null;
+  if (route === 'home') renderHome();
+  if (route === 'progress') renderProgressDashboard();
+  if (route === 'quiz-practice') {
+    if (!state.quizPractice.length && state.chapter !== 'all') {
+      state.quizPracticeFrom = Number(state.chapter);
+      state.quizPracticeThrough = Number(state.chapter);
+    }
+    renderQuizPractice();
+  }
+  if (route === 'flashcards') {
+    prepareFlashcards();
+    renderFlashcards();
+  }
+  if (route === 'fill-blank') renderFillBlank();
+  if (route === 'jeopardy') renderJeopardy();
+  if (route === 'word-search') renderWordSearch();
+  if (route === 'verse-scramble') renderVerseScramble();
+  if (route === 'situation-challenge') renderSituationChallenge();
+  homeButton.hidden = route === 'home';
+  history.replaceState(null, '', `#${route}`);
+  app.focus();
+}
+
+function showResult(element, correct, message) {
+  element.innerHTML = `<p class="notice ${correct ? 'success' : 'error'}">${escapeHtml(message)}</p>`;
+  announce(message);
+}
+
+function handleBlankCheck() {
+  const result = document.querySelector('#blank-result');
+  const entries = [...document.querySelectorAll('[data-blank-index]')];
+  const incorrect = entries.filter((input) => {
+    const expected = state.blank.answers.get(Number(input.dataset.blankIndex));
+    return normalizeAnswer(input.value) !== expected;
+  });
+  showResult(
+    result,
+    incorrect.length === 0,
+    incorrect.length === 0
+      ? 'Excellent! Every word is correct.'
+      : `${incorrect.length} ${incorrect.length === 1 ? 'word needs' : 'words need'} another try.`,
+  );
+  trackActivity({
+    contentType: 'verses',
+    contentId: state.blank.verse.reference,
+    result: incorrect.length === 0 ? 'correct' : 'review',
+    game: 'fill-blank',
+    chapter: state.blank.verse.chapter,
+  });
+  incorrect[0]?.focus();
+}
+
+function handleWordCell(button) {
+  const cell = { x: Number(button.dataset.wordX), y: Number(button.dataset.wordY) };
+  if (!state.wordSearchStart) {
+    state.wordSearchStart = cell;
+    button.classList.add('selected');
+    announce('Starting letter selected. Choose the ending letter.');
+    return;
+  }
+
+  const selectedCells = cellsOnLine(state.wordSearchStart, cell);
+  const selected = selectedCells
+    .map(({ x, y }) => state.wordSearch.grid[y][x])
+    .join('');
+  const reversed = [...selected].reverse().join('');
+  const placement = state.wordSearch.placements.find(
+    ({ word }) => !state.foundWords.has(word) && (word === selected || word === reversed),
+  );
+  state.wordSearchStart = null;
+  if (placement) {
+    state.foundWords.add(placement.word);
+    const sourceWord = filteredData().uniqueWords.find(
+      ({ word }) => normalizeAnswer(word).replaceAll('-', '').toUpperCase() === placement.word,
+    );
+    if (sourceWord) {
+      trackActivity({
+        contentType: 'uniqueWords',
+        contentId: `${sourceWord.word}|${sourceWord.reference}`,
+        result: 'correct',
+        game: 'word-search',
+        chapter: sourceWord.chapter,
+      });
+    }
+    announce(`Found ${placement.word}.`);
+    renderWordSearch();
+    if (state.foundWords.size === state.wordSearch.placements.length) {
+      recordGameSession(activeProfile(), 'word-search', state.foundWords.size);
+      persistProfiles();
+      announce('Puzzle complete! You found every word.');
+    }
+  } else {
+    document.querySelectorAll('.letter.selected').forEach((element) => element.classList.remove('selected'));
+    announce('That line is not one of the hidden words. Try again.');
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const target = event.target.closest('button, [data-route]');
+  if (!target) return;
+
+  if (target.dataset.route) routeTo(target.dataset.route);
+  if (target.dataset.action === 'home') routeTo('home');
+  if (target.dataset.action === 'profile-save') {
+    renameProfile(
+      activeProfile(),
+      document.querySelector('#profile-name').value,
+      document.querySelector('#profile-avatar').value,
+    );
+    persistProfiles();
+    renderProgressDashboard('Profile updated.');
+  }
+  if (target.dataset.action === 'profile-add') {
+    const name = document.querySelector('#new-profile-name').value;
+    const avatar = document.querySelector('#new-profile-avatar').value;
+    addProfile(state.profileStore, name, avatar);
+    resetPersonalizedGameState();
+    persistProfiles();
+    renderProgressDashboard('New profile created.');
+  }
+  if (target.dataset.action === 'profile-export') {
+    const profile = activeProfile();
+    const blob = new Blob([exportProfile(profile)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bible-quiz-${profile.name.toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, '-') || 'profile'}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    announce('Profile exported.');
+  }
+  if (target.dataset.action === 'profile-delete') {
+    const profile = activeProfile();
+    if (window.confirm(`Delete ${profile.name} and all saved progress? This cannot be undone.`)) {
+      deleteProfile(state.profileStore, profile.id);
+      resetPersonalizedGameState();
+      persistProfiles();
+      renderProgressDashboard('Profile deleted.');
+    }
+  }
+  if (target.dataset.action === 'quiz-practice-start') {
+    state.quizPracticeFrom = Number(document.querySelector('#quiz-practice-from').value);
+    state.quizPracticeThrough = Number(document.querySelector('#quiz-practice-through').value);
+    state.quizPracticeType = document.querySelector('#quiz-practice-type').value;
+    state.quizPracticeShuffle = document.querySelector('#quiz-practice-order').value === 'shuffle';
+    state.quizPracticeMode = document.querySelector('#quiz-practice-mode').value;
+    prepareQuizPractice();
+    renderQuizPractice();
+  }
+  if (target.dataset.action === 'buzzer-start') startBuzzerReader();
+  if (target.dataset.action === 'buzzer-buzz') {
+    stopBuzzerReader();
+    state.buzzerBuzzed = true;
+    renderQuizPractice();
+    announce(`Buzzed after ${state.buzzerWordCount} words.`);
+  }
+  if (target.dataset.action === 'speed-start') startSpeedRound();
+  if (target.dataset.action === 'quiz-practice-reveal') {
+    state.quizPracticeRevealed = true;
+    renderQuizPractice();
+    announce('Answer revealed.');
+  }
+  if (
+    target.dataset.action === 'quiz-practice-correct' ||
+    target.dataset.action === 'quiz-practice-review'
+  ) {
+    const question = state.quizPractice[state.quizPracticeIndex];
+    const result = target.dataset.action === 'quiz-practice-correct' ? 'correct' : 'review';
+    state.quizPracticeResults.set(`${state.quizPracticeIndex}:${question.id}`, result);
+    trackActivity({
+      contentType: 'questions',
+      contentId: question.id,
+      result,
+      game: `quiz-${state.quizPracticeMode}`,
+      chapter: question.chapter,
+      questionType: question.typeCode,
+      metadata:
+        state.quizPracticeMode === 'buzzer'
+          ? { buzzerWords: state.buzzerWordCount }
+          : {},
+    });
+    if (
+      ['round', 'buzzer'].includes(state.quizPracticeMode) &&
+      state.quizPracticeIndex === state.quizPractice.length - 1 &&
+      !state.quizSessionRecorded
+    ) {
+      const score = [...state.quizPracticeResults.values()].filter(
+        (value) => value === 'correct',
+      ).length;
+      recordGameSession(activeProfile(), `quiz-${state.quizPracticeMode}`, score);
+      state.quizSessionRecorded = true;
+      persistProfiles();
+    }
+    if (state.quizPracticeMode === 'speed' && state.speedRunning) {
+      moveQuizPractice(1);
+    }
+    renderQuizPractice();
+    announce(
+      result === 'correct'
+        ? `Marked correct.${state.quizPracticeMode === 'speed' ? ' Next question.' : ''}`
+        : `Marked for review.${state.quizPracticeMode === 'speed' ? ' Next question.' : ''}`,
+    );
+  }
+  if (
+    target.dataset.action === 'quiz-practice-next' ||
+    target.dataset.action === 'quiz-practice-prev'
+  ) {
+    const direction = target.dataset.action === 'quiz-practice-next' ? 1 : -1;
+    moveQuizPractice(direction);
+    renderQuizPractice();
+  }
+  if (target.dataset.action === 'flip') {
+    if (!state.flashRevealed) {
+      const card = state.flashcards[state.flashIndex];
+      trackActivity({
+        contentType: state.flashDeck === 'questions' ? 'questions' : 'verses',
+        contentId: state.flashDeck === 'questions' ? card.id : card.reference,
+        result: 'exposure',
+        game: 'flashcards',
+        chapter: card.chapter,
+        questionType: card.typeCode,
+      });
+    }
+    state.flashRevealed = !state.flashRevealed;
+    renderFlashcards();
+  }
+  if (target.dataset.action === 'flash-next' || target.dataset.action === 'flash-prev') {
+    const direction = target.dataset.action === 'flash-next' ? 1 : -1;
+    state.flashIndex = (state.flashIndex + direction + state.flashcards.length) % state.flashcards.length;
+    state.flashRevealed = false;
+    renderFlashcards();
+  }
+  if (target.dataset.action === 'flash-shuffle') {
+    prepareFlashcards();
+    renderFlashcards();
+  }
+  if (
+    target.dataset.action === 'flash-practice' ||
+    target.dataset.action === 'flash-correct'
+  ) {
+    const card = state.flashcards[state.flashIndex];
+    const result = target.dataset.action === 'flash-correct' ? 'correct' : 'review';
+    trackActivity({
+      contentType: state.flashDeck === 'questions' ? 'questions' : 'verses',
+      contentId: state.flashDeck === 'questions' ? card.id : card.reference,
+      result,
+      game: 'flashcards',
+      chapter: card.chapter,
+      questionType: card.typeCode,
+    });
+    state.flashIndex = (state.flashIndex + 1) % state.flashcards.length;
+    state.flashRevealed = false;
+    renderFlashcards();
+    announce(result === 'correct' ? 'Marked correct. Next card.' : 'Marked for review. Next card.');
+  }
+  if (target.dataset.action === 'blank-new') {
+    newBlank();
+    renderFillBlank();
+  }
+  if (target.dataset.action === 'blank-check') handleBlankCheck();
+  if (target.dataset.action === 'blank-hint') {
+    const empty = [...document.querySelectorAll('[data-blank-index]')].find((input) => !input.value);
+    if (empty) {
+      const answer = state.blank.answers.get(Number(empty.dataset.blankIndex));
+      empty.value = answer[0];
+      empty.focus();
+      announce(`Hint: the word begins with ${answer[0]}.`);
+    }
+  }
+  if (target.dataset.action === 'blank-reveal') {
+    document.querySelectorAll('[data-blank-index]').forEach((input) => {
+      input.value = state.blank.answers.get(Number(input.dataset.blankIndex));
+    });
+    showResult(document.querySelector('#blank-result'), true, state.blank.verse.text);
+  }
+  if (target.dataset.jeopardyColumn) {
+    openClue(Number(target.dataset.jeopardyColumn), Number(target.dataset.jeopardyRow));
+  }
+  if (target.dataset.action === 'clue-reveal') {
+    document.querySelector('#clue-answer').hidden = false;
+    target.disabled = true;
+  }
+  if (target.dataset.action === 'clue-close') {
+    const backdrop = target.closest('.dialog-backdrop');
+    state.jeopardy[Number(backdrop.dataset.column)].clues[Number(backdrop.dataset.row)].used = true;
+    backdrop.remove();
+    renderJeopardy();
+  }
+  if (target.dataset.score) {
+    state.teams[Number(target.dataset.team)] += Number(target.dataset.score);
+    renderJeopardy();
+  }
+  if (target.dataset.action === 'team-add' && state.teams.length < 4) {
+    state.teams.push(0);
+    renderJeopardy();
+  }
+  if (target.dataset.action === 'team-remove' && state.teams.length > 2) {
+    state.teams.pop();
+    renderJeopardy();
+  }
+  if (target.dataset.action === 'jeopardy-reset') {
+    newJeopardy();
+    renderJeopardy();
+  }
+  if (target.dataset.scrambleChunk) {
+    state.scrambleSelected.push(target.dataset.scrambleChunk);
+    renderVerseScramble();
+  }
+  if (target.dataset.action === 'scramble-check') {
+    const expected = state.scramble.chunks.map(({ id }) => id);
+    const correct =
+      expected.length === state.scrambleSelected.length &&
+      expected.every((id, index) => state.scrambleSelected[index] === id);
+    trackActivity({
+      contentType: 'verses',
+      contentId: state.scramble.verse.reference,
+      result: correct ? 'correct' : 'review',
+      game: 'verse-scramble',
+      chapter: state.scramble.verse.chapter,
+    });
+    showResult(
+      document.querySelector('#scramble-result'),
+      correct,
+      correct ? 'Excellent! The verse is in the correct order.' : 'Not quite. Adjust the phrases and try again.',
+    );
+  }
+  if (target.dataset.action === 'scramble-undo') {
+    state.scrambleSelected.pop();
+    renderVerseScramble();
+  }
+  if (target.dataset.action === 'scramble-reset') {
+    state.scrambleSelected = [];
+    renderVerseScramble();
+  }
+  if (target.dataset.action === 'scramble-new') {
+    newVerseScramble();
+    renderVerseScramble();
+  }
+  if (target.dataset.action === 'situation-reveal') {
+    state.situationRevealed = true;
+    renderSituationChallenge();
+    announce('Answer revealed.');
+  }
+  if (
+    target.dataset.action === 'situation-correct' ||
+    target.dataset.action === 'situation-review'
+  ) {
+    const correct = target.dataset.action === 'situation-correct';
+    state.situationScore.total += 1;
+    if (correct) state.situationScore.correct += 1;
+    trackActivity({
+      contentType: 'questions',
+      contentId: state.situation.id,
+      result: correct ? 'correct' : 'review',
+      game: 'situation-challenge',
+      chapter: state.situation.chapter,
+      questionType: state.situation.typeCode,
+    });
+    newSituationChallenge();
+    renderSituationChallenge();
+    announce(correct ? 'Marked correct. Next situation.' : 'Marked for review. Next situation.');
+  }
+  if (target.dataset.action === 'situation-next') {
+    newSituationChallenge();
+    renderSituationChallenge();
+  }
+  if (target.dataset.wordX) handleWordCell(target);
+  if (target.dataset.action === 'word-new') {
+    newWordSearch();
+    renderWordSearch();
+  }
+  if (target.dataset.action === 'word-reveal') {
+    state.wordSearch.placements.forEach(({ word }) => state.foundWords.add(word));
+    renderWordSearch();
+    announce('All hidden words revealed.');
+  }
+});
+
+document.addEventListener('change', async (event) => {
+  if (event.target.id === 'profile-switch') {
+    state.profileStore.activeProfileId = event.target.value;
+    resetPersonalizedGameState();
+    persistProfiles();
+    routeTo(location.hash.slice(1) || 'home');
+  }
+  if (event.target.id === 'profile-import') {
+    const [file] = event.target.files;
+    if (file) {
+      try {
+        if (file.size > 2_000_000) throw new Error('Profile files must be smaller than 2 MB.');
+        importProfile(await file.text(), state.profileStore);
+        resetPersonalizedGameState();
+        persistProfiles();
+        renderProgressDashboard('Profile imported.');
+      } catch (error) {
+        renderProgressDashboard(error.message, 'error');
+      }
+    }
+  }
+  if (event.target.id === 'chapter-filter') {
+    state.chapter = event.target.value;
+    state.scramble = null;
+    state.situation = null;
+    state.situationScore = { correct: 0, total: 0 };
+    savePreferences();
+    renderHome();
+  }
+  if (event.target.id === 'blank-difficulty') {
+    state.blankDifficulty = event.target.value;
+    newBlank();
+    renderFillBlank();
+  }
+  if (event.target.id === 'flash-deck') {
+    state.flashDeck = event.target.value;
+    prepareFlashcards();
+    renderFlashcards();
+  }
+  if (event.target.id === 'jeopardy-mode') {
+    state.jeopardyMode = event.target.value;
+    newJeopardy();
+    renderJeopardy();
+  }
+  if (event.target.id === 'word-difficulty') {
+    newWordSearch();
+    renderWordSearch();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    document.querySelector('.dialog-backdrop')?.remove();
+  }
+});
+
+async function initialize() {
+  try {
+    const response = await fetch('data/study-data.json');
+    if (!response.ok) throw new Error(`Study data returned ${response.status}`);
+    state.data = await response.json();
+    state.profileStore = loadProfileStore();
+    persistProfiles();
+    loadPreferences();
+    routeTo(location.hash.slice(1) || 'home');
+
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      navigator.serviceWorker.register('service-worker.js').catch((error) => {
+        console.warn('Offline support could not start:', error);
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    app.innerHTML = `
+      <section class="panel center">
+        <h1>We could not load the study material.</h1>
+        <p>Start the app with <code>npm start</code> and refresh this page.</p>
+      </section>
+    `;
+  }
+}
+
+initialize();

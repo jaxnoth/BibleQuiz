@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Bible Quiz logo</title>
+  <rect width="512" height="512" rx="112" fill="#202833"/>
+  <circle cx="256" cy="256" r="174" fill="#2c5777" stroke="#ee6c4d" stroke-width="28"/>
+  <path d="M160 156h192v220H160z" fill="#dae4e8" rx="12"/>
+  <path d="M256 156v220M190 204h44M278 204h44M190 246h44M278 246h44" stroke="#548eba" stroke-width="14" stroke-linecap="round"/>
+  <path d="M256 150v232" stroke="#ee6c4d" stroke-width="10"/>
+  <circle cx="256" cy="315" r="35" fill="#ee6c4d"/>
+  <path d="M256 296v25" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="256" cy="337" r="6" fill="#fff"/>
+</svg>

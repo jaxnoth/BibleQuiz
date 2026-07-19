@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#202833">
+    <meta
+      name="description"
+      content="Practice games for Bible quizzers studying the Gospel of John."
+    >
+    <title>Bible Quiz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Oswald:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="Bible Quiz home">
+        <span class="brand-mark" aria-hidden="true">BQ</span>
+        <span>
+          <span class="app-title">Bible Quiz</span>
+          <span class="tagline">Learn it. Live it. Love it.</span>
+        </span>
+      </a>
+      <div class="header-actions">
+        <label class="profile-switch">
+          <span class="sr-only">Active profile</span>
+          <select id="profile-switch" aria-label="Active profile"></select>
+        </label>
+        <button class="header-progress" type="button" data-route="progress">My Progress</button>
+        <button class="header-home" type="button" data-action="home" hidden>All games</button>
+      </div>
+    </header>
+
+    <main id="app" class="app-shell" tabindex="-1">
+      <p class="loading">Preparing your games</p>
+    </main>
+
+    <footer>
+      <p>John 1-5 <span aria-hidden="true">•</span> 2026-27 Quiz Season</p>
+    </footer>
+
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <noscript>
+      <p class="noscript">Bible Quiz needs JavaScript enabled to run the games.</p>
+    </noscript>
+  </body>
+</html>
