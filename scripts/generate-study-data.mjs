@@ -1,90 +1,19 @@
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import {
+  cleanText,
+  parseCsv,
+  parseReference,
+  parseScriptureChapter,
+  questionTypes,
+} from './study-data-lib.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDirectory = path.join(projectRoot, 'SourceMaterial');
+const scriptureDirectory = path.join(sourceDirectory, 'Scripture');
 const outputPath = path.join(projectRoot, 'web', 'data', 'study-data.json');
 const enabledChapters = new Set([1, 2, 3, 4, 5]);
-
-function parseCsv(source) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let quoted = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
-    const nextCharacter = source[index + 1];
-
-    if (character === '"') {
-      if (quoted && nextCharacter === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === ',' && !quoted) {
-      row.push(field);
-      field = '';
-    } else if ((character === '\n' || character === '\r') && !quoted) {
-      if (character === '\r' && nextCharacter === '\n') {
-        index += 1;
-      }
-      row.push(field);
-      if (row.some((value) => value.length > 0)) {
-        rows.push(row);
-      }
-      row = [];
-      field = '';
-    } else {
-      field += character;
-    }
-  }
-
-  if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-
-  if (quoted) {
-    throw new Error('CSV contains an unclosed quoted field.');
-  }
-
-  const [headers, ...records] = rows;
-  return records.map((values) =>
-    Object.fromEntries(headers.map((header, index) => [header.trim(), values[index] ?? ''])),
-  );
-}
-
-function cleanText(value) {
-  return value
-    .replaceAll('&apos;', "'")
-    .replaceAll('\u2014', '-')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function parseReference(value) {
-  const reference = cleanText(value);
-  const match = /^John\s+(\d+):(\d+)(?:-(\d+))?$/i.exec(reference);
-
-  if (!match) {
-    throw new Error(`Unsupported Bible reference: "${value}"`);
-  }
-
-  const chapter = Number(match[1]);
-  const verseStart = Number(match[2]);
-  const verseEnd = Number(match[3] ?? match[2]);
-
-  return {
-    reference: `John ${chapter}:${verseStart}${verseEnd === verseStart ? '' : `-${verseEnd}`}`,
-    book: 'John',
-    chapter,
-    verseStart,
-    verseEnd,
-  };
-}
 
 function assertUnique(records, key, label) {
   const seen = new Set();
@@ -102,23 +31,12 @@ async function loadCsv(filename) {
   return parseCsv(source);
 }
 
-const memoryRows = await loadCsv('memory-verses-2026-27.csv');
-const uniqueWordRows = await loadCsv('unique-words-2026-27.csv');
-
-const questionTypes = {
-  A: 'According To',
-  G: 'General',
-  Q: 'Quote',
-  S: 'Situation',
-  X: 'Reference',
-};
-
 function decodeRtfText(value) {
   return cleanText(
     value
       .replace(/\\u(-?\d+)\?/g, (_, code) => {
-        const value = Number(code);
-        return String.fromCodePoint(value < 0 ? value + 65536 : value);
+        const numeric = Number(code);
+        return String.fromCodePoint(numeric < 0 ? numeric + 65536 : numeric);
       })
       .replace(/\\'([0-9a-f]{2})/gi, (_, hex) =>
         new TextDecoder('windows-1252').decode(Uint8Array.of(Number.parseInt(hex, 16))),
@@ -152,6 +70,7 @@ function parseRtfQuestions(source, expectedChapter) {
       );
     }
 
+    const typeName = questionTypes[typeCode] ?? `Type ${typeCode}`;
     questions.push({
       id: `official-${expectedChapter}-${number}`,
       number: Number(number),
@@ -159,8 +78,9 @@ function parseRtfQuestions(source, expectedChapter) {
       answer: cleanText(answerWithReference.slice(0, referenceMatch.index)),
       reference: cleanText(referenceMatch[1]),
       chapter: parsedReference.chapter,
-      type: questionTypes[typeCode] ?? `Type ${typeCode}`,
+      type: typeName,
       typeCode,
+      typeName,
     });
   }
 
@@ -171,6 +91,26 @@ function parseRtfQuestions(source, expectedChapter) {
   return questions;
 }
 
+async function loadScriptureChapters() {
+  const files = await readdir(scriptureDirectory);
+  const chapters = [];
+
+  for (const chapter of [...enabledChapters].sort((a, b) => a - b)) {
+    const filename = `John ${chapter}.md`;
+    if (!files.includes(filename)) {
+      throw new Error(`Missing Scripture file: ${path.join('Scripture', filename)}`);
+    }
+    const relativePath = path.join('Scripture', filename);
+    const source = await readFile(path.join(scriptureDirectory, filename), 'utf8');
+    chapters.push(parseScriptureChapter(source, chapter, relativePath.replaceAll('\\', '/')));
+  }
+
+  return chapters;
+}
+
+const memoryRows = await loadCsv('memory-verses-2026-27.csv');
+const uniqueWordRows = await loadCsv('unique-words-2026-27.csv');
+
 const officialQuestionSets = await Promise.all(
   [...enabledChapters].map(async (chapter) => {
     const filename = path.join('Questions', `John-${chapter}`, 'questions-1.rtf');
@@ -178,6 +118,8 @@ const officialQuestionSets = await Promise.all(
     return parseRtfQuestions(source, chapter);
   }),
 );
+
+const scriptureChapters = await loadScriptureChapters();
 
 const allMemoryVerses = memoryRows.map((row) => ({
   ...parseReference(row.Verse),
@@ -214,6 +156,7 @@ const sourceFiles = [
   ...[...enabledChapters].map(
     (chapter) => `Questions/John-${chapter}/questions-1.rtf`,
   ),
+  ...[...enabledChapters].map((chapter) => `Scripture/John ${chapter}.md`),
 ];
 
 const data = {
@@ -224,15 +167,20 @@ const data = {
     generatedAt: new Date().toISOString(),
     sourceFiles,
     questionSource: 'official',
+    distribution: 'internal-personal',
+    scriptureAttribution:
+      'Scripture text retained for internal personal practice only. Confirm translation permission and required copyright notice before any public distribution.',
   },
   memoryVerses,
   uniqueWords,
   quizQuestions,
+  scriptureChapters,
 };
 
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 
+const verseCount = scriptureChapters.reduce((total, chapter) => total + chapter.verses.length, 0);
 console.log(
-  `Generated ${path.relative(projectRoot, outputPath)} with ${memoryVerses.length} memory verses, ${uniqueWords.length} unique words, and ${quizQuestions.length} quiz questions.`,
+  `Generated ${path.relative(projectRoot, outputPath)} with ${memoryVerses.length} memory verses, ${uniqueWords.length} unique words, ${quizQuestions.length} quiz questions, and ${scriptureChapters.length} Scripture chapters (${verseCount} verses).`,
 );

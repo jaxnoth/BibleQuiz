@@ -1,22 +1,33 @@
 # Bible Quiz Design
 
-Last updated: 2026-07-18
+Last updated: 2026-08-09
 
 ## Product vision
 
 Bible Quiz is a mobile-friendly collection of practice games for Bible quizzers studying the Gospel of John. It should feel related to Bible Bingo, work well in a classroom or church setting, and remain easy to expand as more study material is added.
 
+**Distribution:** Internal personal use for this ship. Public Scripture distribution requires translation permission and attribution review first. See `metadata.scriptureAttribution` and [docs/Quizmaster-Workshop.md](docs/Quizmaster-Workshop.md).
+
+## Guides
+
+- [Quizmaster Workshop](docs/Quizmaster-Workshop.md)
+- [Scoring Summary](docs/Scoring-Summary.md)
+- [Practice Tips and Study Plan](docs/Practice-Tips-and-Study-Plan.md)
+- [Team Practice](docs/Team-Practice.md)
+- [Quality Checklist](docs/Quality-Checklist.md)
+
 ## Current scope
 
 The first release supports John 1-5 and includes:
 
-1. Direct quiz-question practice by chapter range.
+1. Direct quiz-question practice by chapter range, with official type quotas on 20-question rounds.
 2. Flash cards for memory verses.
 3. A Jeopardy-style team game.
 4. Word search puzzles.
 5. Fill-in-the-blank memory verse practice.
 6. Verse Scramble memory practice.
 7. Situation Challenge using official situation questions.
+8. Scripture chapter reader with memory-verse and unique-word highlights.
 
 The app is a static site with local study data. Core play does not require an API key or account.
 
@@ -67,7 +78,8 @@ Match the Bible Bingo visual family:
 - Speed Round gives the student 60 seconds to answer as many questions as possible.
 - Selects one chapter or a continuous range of chapters.
 - Supports chapter order or shuffled order.
-- Filters by official type: According To, General, Quote, Situation, or Reference.
+- Filters by official type: According To, General, Quote, Situation, or Context (`typeCode` `X`).
+- 20-question round and buzzer modes with type filter `all` apply round type quotas (G/A/Q/V/R/S/X); empty V/R backfill from G then A.
 - Reveals the supplied answer and reference on request.
 - Lets quizzers self-score as correct or needing review.
 - Uses the official chapter question banks extracted from the supplied ZIP files.
@@ -85,7 +97,7 @@ Match the Bible Bingo visual family:
 ### Jeopardy
 
 - Five categories with five increasing point values.
-- Official mode uses According To, General, Quote, Situation, and Reference questions.
+- Official mode uses According To, General, Quote, Situation, and Context questions.
 - Study-drill mode uses References, Finish the Verse, Missing Words, Jump Words, and Unique Words.
 - Coach-controlled reveal flow: clue, answer, award points.
 - Two to four configurable teams.
@@ -149,9 +161,16 @@ quizQuestions[]
   reference
   chapter
   type
+  typeCode
+  typeName
+
+scriptureChapters[]
+  book
+  chapter
+  verses[] { verse, text, reference }
 ```
 
-Only records from enabled chapters are exposed in the first release. The importer must tolerate whitespace and punctuation issues in source CSV files, decode the supplied RTF question banks, and make future chapter additions data-only work.
+Only records from enabled chapters are exposed in the first release. The importer must tolerate whitespace and punctuation issues in source CSV files, decode the supplied RTF question banks, parse Scripture markdown under `SourceMaterial/Scripture/`, and make future chapter additions data-only work. Stats keys stay on `typeCode`; UI labels use `typeName` (Context for `X`).
 
 ## Technical architecture
 

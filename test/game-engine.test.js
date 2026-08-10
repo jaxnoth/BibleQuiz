@@ -68,7 +68,7 @@ test('Jeopardy can use official questions or study drills', () => {
   const drills = createJeopardyBoard(verses, uniqueWords, quizQuestions, 'drills', () => 0);
   assert.deepEqual(
     official.map(({ name }) => name),
-    ['According To', 'General', 'Quote', 'Situation', 'Reference'],
+    ['According To', 'General', 'Quote', 'Situation', 'Context'],
   );
   assert.deepEqual(
     drills.map(({ name }) => name),

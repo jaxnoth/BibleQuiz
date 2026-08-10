@@ -1,8 +1,12 @@
 # Bible Quiz TODO
 
-Last updated: 2026-07-18
+Last updated: 2026-08-09
 
 This file is the persistent project backlog. Completed work remains checked for history.
+
+Guides: [Quizmaster Workshop](docs/Quizmaster-Workshop.md) · [Scoring](docs/Scoring-Summary.md) · [Practice tips](docs/Practice-Tips-and-Study-Plan.md) · [Team practice](docs/Team-Practice.md) · [Quality checklist](docs/Quality-Checklist.md)
+
+Workshop Reference / Finish + give reference is a memory-family quiz type (future code `R`). Future Reference matching is a separate feature.
 
 ## In progress
 
@@ -16,7 +20,7 @@ This file is the persistent project backlog. Completed work remains checked for 
 - [x] Define first-release scope and assumptions.
 - [x] Record non-blocking product questions.
 - [ ] Review the first playable iteration with coaches and quizzers.
-- [ ] Confirm the authoritative Bible translation and required copyright notice.
+- [ ] Confirm the authoritative Bible translation and required copyright notice (tracked for internal personal use; public distribution remains gated).
 
 ## Foundation
 
@@ -33,7 +37,9 @@ This file is the persistent project backlog. Completed work remains checked for 
 - [x] Validate duplicate and malformed records.
 - [x] Enable John 1-5 while retaining a path to later chapters.
 - [x] Document how to add future material.
-- [ ] Add full chapter text when an approved source is available.
+- [x] Add chapter text (Scripture John 1-5) with attribution metadata for internal personal use.
+- [x] Remap display label for type `X` to Context while keeping `typeCode` for stats.
+- [x] Apply 20-question round type quotas (G/A/Q/V/R/S/X) with G-then-A backfill when V/R are empty.
 
 ## Games
 
@@ -50,6 +56,13 @@ This file is the persistent project backlog. Completed work remains checked for 
 - [x] Extract and parse the supplied John 1-5 RTF question banks.
 - [x] Import all 791 official questions with type, answer, and reference.
 - [x] Exclude jump-word and unique-word drills from Quiz Practice.
+- [x] Enforce official type quotas on round/buzzer when type filter is all.
+
+### Scripture
+
+- [x] Ingest John 1-5 chapter text.
+- [x] Reader UI with memory-verse bands and unique-word highlights (escape-first).
+- [x] Toggles for memory and unique highlights.
 
 ### Flash cards
 
@@ -91,13 +104,14 @@ This file is the persistent project backlog. Completed work remains checked for 
 
 ## Quality
 
-- [ ] Add automated tests for CSV parsing and normalization.
+- [x] Add automated tests for CSV parsing and normalization.
 - [x] Add automated tests for question and puzzle generation.
 - [x] Add automated tests for profiles, progress, adaptive ordering, and import/export.
-- [ ] Check keyboard navigation and screen-reader announcements.
-- [ ] Check reduced-motion behavior and color contrast.
-- [ ] Test current Chrome, Edge, Firefox, and Safari.
-- [ ] Test common phone, tablet, laptop, and projector sizes.
+- [x] Add automated tests for round quotas, Scripture parse, and highlight escape-first.
+- [x] Check keyboard navigation and screen-reader announcements (see [Quality checklist](docs/Quality-Checklist.md)).
+- [x] Check reduced-motion behavior and color contrast (see checklist).
+- [x] Test current Chrome, Edge, and Firefox. Safari: Not available - explicitly skipped (Partial browsers coverage).
+- [x] Test common phone, tablet, laptop, and projector sizes (390 / 768 / 1280 / 1920).
 
 ## Profiles and personalization
 
@@ -120,12 +134,27 @@ This file is the persistent project backlog. Completed work remains checked for 
 
 ## Future candidates
 
-- [ ] Verse scramble.
-- [ ] Reference matching.
+- [ ] Finish this verse (`V`) question bank.
+- [ ] Finish + give reference (`R`) question bank (workshop Reference; not Reference matching).
+- [ ] True book-and-chapter questions for epistle seasons.
+- [ ] Reference matching (separate from workshop finish + reference).
 - [ ] Who said it?
 - [ ] Timeline challenge.
 - [ ] Quote or not?
-- [ ] Sixty-second speed round.
 - [ ] Team buzzer mode.
+- [ ] Live scoring / toss-up and bonus simulation.
 - [ ] Spaced-repetition practice plan.
 - [ ] Coach-authored CSV question imports.
+- [ ] Tips / Study Plan UI surfaces for the guide docs.
+- [ ] Coach Play modes beyond current games.
+
+### From phone brainstorm 2026-08-08
+
+- [x] Highlight key words within each passage during study and practice (Scripture reader memory + unique highlights; practice-card highlights remain future).
+- [ ] Progressive memory-verse trainer that gradually and randomly reduces words to first letter or blanks.
+- [ ] Pictionary-style drawing game mode.
+- [ ] Pre-jump trainer that reveals a question with the ending removed for jump-timing practice.
+- [ ] Pre-jump timing option that fires right before the question ends.
+- [ ] Concordance and keyword lookup across question and verse material.
+- [ ] Rotation mode where a player rotates out after answering correctly.
+- [ ] Support non-Bible (general) question sets in training modes.

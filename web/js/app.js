@@ -21,6 +21,8 @@ import {
   renameProfile,
   saveProfileStore,
 } from './progress-store.js';
+import { selectRoundQuestions, typeHistogram } from './round-quotas.js';
+import { renderScriptureVerses } from './scripture-highlight.js';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -68,6 +70,9 @@ const state = {
   situation: null,
   situationRevealed: false,
   situationScore: { correct: 0, total: 0 },
+  scriptureChapter: 1,
+  scriptureShowMemory: true,
+  scriptureShowUnique: true,
 };
 
 if (params.has('embed') || window.self !== window.top) {
@@ -196,6 +201,7 @@ function chapterOptions() {
 function renderHome() {
   const games = [
     ['quiz-practice', 'Q', 'Quiz Practice', 'Practice a 20-question round or continue without a limit.'],
+    ['scripture', '§', 'Scripture', 'Read John with memory-verse bands and unique-word highlights.'],
     ['flashcards', '▣', 'Flash Cards', 'Review memory verses or official quiz questions.'],
     ['jeopardy', '★', 'Jeopardy', 'Play with official questions or study-drill categories.'],
     ['word-search', '⌕', 'Word Search', 'Find selected unique words hidden in a puzzle.'],
@@ -283,7 +289,7 @@ function renderProgressDashboard(message = '', messageType = 'success') {
     G: 'General',
     Q: 'Quote',
     S: 'Situation',
-    X: 'Reference',
+    X: 'Context',
   };
   const typeLines = Object.entries(typeNames)
     .map(([code, name]) => statLine(name, profile.stats.byQuestionType[code]))
@@ -420,17 +426,21 @@ function quizPracticeChapterOptions(selected) {
     .join('');
 }
 
-function quizPracticeQuestionPool() {
+function quizPracticeFilteredQuestions() {
   const firstChapter = Math.min(state.quizPracticeFrom, state.quizPracticeThrough);
   const lastChapter = Math.max(state.quizPracticeFrom, state.quizPracticeThrough);
   state.quizPracticeFrom = firstChapter;
   state.quizPracticeThrough = lastChapter;
-  const questions = state.data.quizQuestions.filter(
+  return state.data.quizQuestions.filter(
     ({ chapter, typeCode }) =>
       chapter >= firstChapter &&
       chapter <= lastChapter &&
       (state.quizPracticeType === 'all' || typeCode === state.quizPracticeType),
   );
+}
+
+function quizPracticeQuestionPool() {
+  const questions = quizPracticeFilteredQuestions();
   return state.quizPracticeShuffle
     ? adaptiveShuffle(questions, 'questions', activeProfile())
     : [...questions];
@@ -519,11 +529,20 @@ function startSpeedRound() {
 function prepareQuizPractice() {
   stopBuzzerReader();
   stopSpeedTimer();
-  const orderedQuestions = quizPracticeQuestionPool();
-  state.quizPractice =
-    ['round', 'buzzer'].includes(state.quizPracticeMode)
+  const useTypeQuotas =
+    ['round', 'buzzer'].includes(state.quizPracticeMode) && state.quizPracticeType === 'all';
+  if (useTypeQuotas) {
+    state.quizPractice = selectRoundQuestions(quizPracticeFilteredQuestions(), activeProfile(), {
+      shuffle: state.quizPracticeShuffle,
+      adaptiveShuffleFn: adaptiveShuffle,
+    });
+    console.debug('Round type histogram', typeHistogram(state.quizPractice));
+  } else {
+    const orderedQuestions = quizPracticeQuestionPool();
+    state.quizPractice = ['round', 'buzzer'].includes(state.quizPracticeMode)
       ? orderedQuestions.slice(0, 20)
       : orderedQuestions;
+  }
   state.quizPracticeIndex = 0;
   resetQuestionPresentation();
   state.speedSeconds = 60;
@@ -579,7 +598,7 @@ function renderQuizPractice() {
             <option value="G"${state.quizPracticeType === 'G' ? ' selected' : ''}>General</option>
             <option value="Q"${state.quizPracticeType === 'Q' ? ' selected' : ''}>Quote</option>
             <option value="S"${state.quizPracticeType === 'S' ? ' selected' : ''}>Situation</option>
-            <option value="X"${state.quizPracticeType === 'X' ? ' selected' : ''}>Reference</option>
+            <option value="X"${state.quizPracticeType === 'X' ? ' selected' : ''}>Context</option>
           </select>
         </label>
         <label class="field">
@@ -1032,6 +1051,73 @@ function renderSituationChallenge() {
   `;
 }
 
+function renderScripture() {
+  const chapters = state.data.scriptureChapters ?? [];
+  if (!chapters.length) {
+    app.innerHTML = `
+      ${renderGameHeader('Scripture', 'Chapter text is not available in this build.')}
+      <section class="panel"><p>Regenerate study data to include Scripture chapters.</p></section>
+    `;
+    return;
+  }
+  if (!chapters.some((chapter) => chapter.chapter === state.scriptureChapter)) {
+    state.scriptureChapter = chapters[0].chapter;
+  }
+  const chapterRecord = chapters.find((chapter) => chapter.chapter === state.scriptureChapter);
+  const memoryVerses = state.data.memoryVerses.filter(
+    (verse) => verse.chapter === state.scriptureChapter,
+  );
+  const uniqueWords = state.data.uniqueWords.filter(
+    (word) => word.chapter === state.scriptureChapter,
+  );
+  const attribution = state.data.metadata.scriptureAttribution ?? '';
+  const body = renderScriptureVerses(chapterRecord.verses, memoryVerses, uniqueWords, {
+    showMemory: state.scriptureShowMemory,
+    showUnique: state.scriptureShowUnique,
+  });
+
+  app.innerHTML = `
+    ${renderGameHeader('Scripture', 'Read the chapter with optional memory and unique-word highlights.')}
+    <section class="panel">
+      <div class="toolbar">
+        <label class="field">
+          Chapter
+          <select id="scripture-chapter">
+            ${chapters
+              .map(
+                (chapter) =>
+                  `<option value="${chapter.chapter}"${
+                    chapter.chapter === state.scriptureChapter ? ' selected' : ''
+                  }>John ${chapter.chapter}</option>`,
+              )
+              .join('')}
+          </select>
+        </label>
+        <label class="field checkbox-field">
+          <input id="scripture-memory" type="checkbox"${state.scriptureShowMemory ? ' checked' : ''}>
+          Memory verses
+        </label>
+        <label class="field checkbox-field">
+          <input id="scripture-unique" type="checkbox"${state.scriptureShowUnique ? ' checked' : ''}>
+          Unique words
+        </label>
+      </div>
+      <div class="scripture-legend game-meta" aria-hidden="true">
+        <span class="legend-memory">Memory verse</span>
+        <span class="legend-unique">Unique word</span>
+      </div>
+      <article class="scripture-text" aria-label="John ${state.scriptureChapter}">
+        ${body}
+      </article>
+      ${
+        attribution
+          ? `<p class="game-meta scripture-attribution">${escapeHtml(attribution)}</p>`
+          : ''
+      }
+    </section>
+  `;
+}
+
 function routeTo(route) {
   if (route === 'questions') route = 'quiz-practice';
   if (route !== 'quiz-practice') {
@@ -1049,6 +1135,10 @@ function routeTo(route) {
       state.quizPracticeThrough = Number(state.chapter);
     }
     renderQuizPractice();
+  }
+  if (route === 'scripture') {
+    if (state.chapter !== 'all') state.scriptureChapter = Number(state.chapter);
+    renderScripture();
   }
   if (route === 'flashcards') {
     prepareFlashcards();
@@ -1466,6 +1556,18 @@ document.addEventListener('change', async (event) => {
   if (event.target.id === 'word-difficulty') {
     newWordSearch();
     renderWordSearch();
+  }
+  if (event.target.id === 'scripture-chapter') {
+    state.scriptureChapter = Number(event.target.value);
+    renderScripture();
+  }
+  if (event.target.id === 'scripture-memory') {
+    state.scriptureShowMemory = event.target.checked;
+    renderScripture();
+  }
+  if (event.target.id === 'scripture-unique') {
+    state.scriptureShowUnique = event.target.checked;
+    renderScripture();
   }
 });
 

@@ -831,3 +831,75 @@ body.embedded .brand-mark {
     animation: none !important;
   }
 }
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-direction: row;
+}
+
+.checkbox-field input {
+  width: auto;
+  margin: 0;
+}
+
+.scripture-text {
+  margin-top: 1rem;
+  line-height: 1.65;
+}
+
+.scripture-verse {
+  margin: 0 0 0.65rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.4rem;
+}
+
+.scripture-verse.memory-verse {
+  background: rgba(238, 108, 77, 0.16);
+  box-shadow: inset 3px 0 0 #ee6c4d;
+}
+
+.scripture-verse .verse-number {
+  font-weight: 700;
+  color: #2c5777;
+  margin-right: 0.25rem;
+}
+
+mark.unique-word {
+  background: #bbdaea;
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 0.2em;
+}
+
+.scripture-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.legend-memory::before,
+.legend-unique::before {
+  content: '';
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.1rem;
+  border-radius: 0.15rem;
+}
+
+.legend-memory::before {
+  background: rgba(238, 108, 77, 0.35);
+  box-shadow: inset 2px 0 0 #ee6c4d;
+}
+
+.legend-unique::before {
+  background: #bbdaea;
+}
+
+.scripture-attribution {
+  margin-top: 1.25rem;
+}

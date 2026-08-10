@@ -32,13 +32,16 @@ The app can be embedded with `http://localhost:3000/?embed=1`.
 
 ```text
 BibleQuiz/
-  SourceMaterial/          Original quiz CSV files
+  SourceMaterial/          Original quiz CSV, RTF banks, Scripture chapters
+  docs/                    Workshop, scoring, practice, quality guides
   scripts/                 Data generator and local server
   test/                    Game-logic tests
   web/                     Deployable static application
   DESIGN.md                Product and technical design
   TODO.md                  Persistent project backlog
 ```
+
+Guides: [Quizmaster Workshop](docs/Quizmaster-Workshop.md), [Quality checklist](docs/Quality-Checklist.md). Distribution is internal-personal until translation rights are confirmed for public Scripture.
 
 ## Add study material
 

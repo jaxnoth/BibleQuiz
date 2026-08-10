@@ -82,7 +82,7 @@ export function createJeopardyBoard(
     officialCategory('General', 'G'),
     officialCategory('Quote', 'Q'),
     officialCategory('Situation', 'S'),
-    officialCategory('Reference', 'X'),
+    officialCategory('Context', 'X'),
   ];
 
   const drillCategories = [
