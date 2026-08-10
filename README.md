@@ -5,10 +5,11 @@ Practice games for Bible quizzers studying the Gospel of John during the 2026-27
 ## Included games
 
 - Quiz Practice with shuffled 20-question rounds, continuous mode, Buzzer Practice, Speed Round, type filters, answer reveal, and self-scoring.
-- Flash cards for memory verses or official question-and-answer review.
+- Flash cards for memory verses or official question-and-answer review (optional slow word reveal on the memory deck).
+- Scripture chapter reader with concordance search and unique-word browser (home CTA: Read Scripture).
 - A coach-led Jeopardy-style team game with official and study-drill boards.
 - Generated word search puzzles using unique words.
-- Fill-in-the-blank memory verse practice.
+- Fill-in-the-blank memory verse practice with a 0-100% blank-ratio slider.
 - Verse Scramble using memory-verse phrases.
 - Situation Challenge using official Situation questions.
 

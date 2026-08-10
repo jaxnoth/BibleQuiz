@@ -63,6 +63,8 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Ingest John 1-5 chapter text.
 - [x] Reader UI with memory-verse bands and unique-word highlights (escape-first).
 - [x] Toggles for memory and unique highlights.
+- [x] Home CTA reads **Read Scripture** (card title stays Scripture).
+- [x] Concordance: free-text chapter search + unique-word browser with jump/highlight.
 
 ### Flash cards
 
@@ -70,6 +72,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Add an official question-and-answer card deck.
 - [x] Add flip, previous, next, and shuffle actions.
 - [x] Add "needs practice" tracking.
+- [x] Memory-deck slow reveal (next word, reveal all, auto-play/pause/speed).
 
 ### Jeopardy
 
@@ -91,6 +94,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Generate blanks from memory verses.
 - [x] Add difficulty, hints, checking, and reveal.
 - [x] Normalize typed answers for fair checking.
+- [x] Progressive blank-ratio slider (0% none, 1-99% eligible words, 100% all words).
 
 ### Verse Scramble
 
@@ -108,8 +112,10 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Add automated tests for question and puzzle generation.
 - [x] Add automated tests for profiles, progress, adaptive ordering, and import/export.
 - [x] Add automated tests for round quotas, Scripture parse, and highlight escape-first.
+- [x] Add automated tests for blank-ratio, Scripture concordance, and flash slow-reveal helpers.
 - [x] Check keyboard navigation and screen-reader announcements (see [Quality checklist](docs/Quality-Checklist.md)).
 - [x] Check reduced-motion behavior and color contrast (see checklist).
+- [x] Accessibility smoke: concordance results, unique-word browser, and flash reveal controls are keyboard usable (see checklist).
 - [x] Test current Chrome, Edge, and Firefox. Safari: Not available - explicitly skipped (Partial browsers coverage).
 - [x] Test common phone, tablet, laptop, and projector sizes (390 / 768 / 1280 / 1920).
 
@@ -151,10 +157,10 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 ### From phone brainstorm 2026-08-08
 
 - [x] Highlight key words within each passage during study and practice (Scripture reader memory + unique highlights; practice-card highlights remain future).
-- [ ] Progressive memory-verse trainer that gradually and randomly reduces words to first letter or blanks.
+- [ ] Progressive memory-verse trainer (first-letter / advanced masking).
 - [ ] Pictionary-style drawing game mode.
 - [ ] Pre-jump trainer that reveals a question with the ending removed for jump-timing practice.
 - [ ] Pre-jump timing option that fires right before the question ends.
-- [ ] Concordance and keyword lookup across question and verse material.
+- [x] Concordance and keyword lookup across Scripture (chapter search + unique-word browser; quiz-bank search remains future).
 - [ ] Rotation mode where a player rotates out after answering correctly.
 - [ ] Support non-Bible (general) question sets in training modes.

@@ -21,17 +21,26 @@ export function sample(items, random = Math.random) {
   return items[Math.floor(random() * items.length)];
 }
 
-export function createBlankQuestion(verse, difficulty = 'medium', random = Math.random) {
+export function createBlankQuestion(verse, blankRatio = 0.22, random = Math.random) {
+  const ratio = Math.max(0, Math.min(1, Number(blankRatio) || 0));
   const words = verse.text.split(' ');
-  const eligible = words
-    .map((word, index) => ({ word, index }))
-    .filter(({ word }) => normalizeAnswer(word).length >= 4);
-  const ratios = { easy: 0.12, medium: 0.22, hard: 0.35 };
-  const count = Math.max(1, Math.round(eligible.length * (ratios[difficulty] ?? ratios.medium)));
-  const hidden = shuffle(eligible, random).slice(0, count);
+  let hidden;
+
+  if (ratio === 0) {
+    hidden = [];
+  } else if (ratio === 1) {
+    hidden = words.map((word, index) => ({ word, index }));
+  } else {
+    const eligible = words
+      .map((word, index) => ({ word, index }))
+      .filter(({ word }) => normalizeAnswer(word).length >= 4);
+    const count = Math.max(1, Math.round(eligible.length * ratio));
+    hidden = shuffle(eligible, random).slice(0, Math.min(count, eligible.length));
+  }
+
   const answers = new Map(hidden.map(({ word, index }) => [index, normalizeAnswer(word)]));
 
-  return { verse, words, answers, difficulty };
+  return { verse, words, answers, blankRatio: ratio };
 }
 
 export function createVerseScramble(verse, random = Math.random) {

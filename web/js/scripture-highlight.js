@@ -97,7 +97,7 @@ export function renderScriptureVerses(
   verses,
   memoryVerses,
   uniqueWords,
-  { showMemory = true, showUnique = true } = {},
+  { showMemory = true, showUnique = true, focusVerse = null } = {},
 ) {
   return verses
     .map((verse) => {
@@ -106,13 +106,18 @@ export function renderScriptureVerses(
       const body = showUnique
         ? highlightUniqueWords(verse.text, words)
         : escapeHtml(verse.text);
-      const classes = ['scripture-verse', memory ? 'memory-verse' : '']
+      const focused = focusVerse != null && Number(focusVerse) === Number(verse.verse);
+      const classes = [
+        'scripture-verse',
+        memory ? 'memory-verse' : '',
+        focused ? 'concordance-focus' : '',
+      ]
         .filter(Boolean)
         .join(' ');
       const memoryLabel = memory
         ? ` data-memory="true" title="Memory verse"`
         : '';
-      return `<p class="${classes}"${memoryLabel}><sup class="verse-number">${verse.verse}</sup> ${body}</p>`;
+      return `<p class="${classes}" data-verse="${verse.verse}"${memoryLabel}><sup class="verse-number">${verse.verse}</sup> ${body}</p>`;
     })
     .join('');
 }

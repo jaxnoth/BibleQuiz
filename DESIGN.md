@@ -89,6 +89,7 @@ Match the Bible Bingo visual family:
 
 - Offers memory-verse and official-question decks.
 - Memory cards show the reference, complete verse, and optional jump words.
+- Memory cards may use optional slow reveal (next word, reveal all, auto-play with pause/speed). Auto-play defaults off under `prefers-reduced-motion` but remains available.
 - Question cards show the type above the question, then reveal the answer with its reference on a separate line.
 - Previous, flip, next, shuffle, and "needs practice" controls.
 - Session progress and local review tracking.
@@ -115,10 +116,16 @@ Match the Bible Bingo visual family:
 ### Fill in the blank
 
 - Uses memory verse text.
-- Difficulty controls the number of hidden words.
+- Blank-ratio slider (0-100%): 0% shows the full verse; 1-99% blanks eligible words (length >= 4); 100% blanks every word.
 - Accepts answers without requiring exact capitalization or punctuation.
 - Offers hints and a full-answer reveal.
 - Shows immediate, encouraging correction.
+
+### Scripture
+
+- Home CTA is **Read Scripture** (feature title remains Scripture).
+- Chapter reader with memory-verse bands and unique-word marks.
+- Concordance: free-text search in the current chapter plus a unique-word browser; results jump to the verse with a temporary highlight.
 
 ### Verse Scramble
 

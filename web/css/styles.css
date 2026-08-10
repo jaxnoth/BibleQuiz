@@ -903,3 +903,61 @@ mark.unique-word {
 .scripture-attribution {
   margin-top: 1.25rem;
 }
+
+.concordance-focus {
+  outline: 2px solid #ee6c4d;
+  background: rgba(187, 218, 234, 0.45);
+}
+
+.concordance-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.concordance-results,
+.unique-word-browser {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  border: 1px solid #98c1d9;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.concordance-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #dae4e8;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+}
+
+.concordance-hit:hover,
+.concordance-hit:focus-visible {
+  background: #bbdaea;
+  outline: none;
+}
+
+.blank-ratio-field {
+  min-width: min(100%, 18rem);
+}
+
+.blank-ratio-field input[type='range'] {
+  width: 100%;
+}
+
+.flash-reveal-controls {
+  flex-wrap: wrap;
+}
+

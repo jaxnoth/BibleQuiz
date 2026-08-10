@@ -23,6 +23,18 @@ import {
 } from './progress-store.js';
 import { selectRoundQuestions, typeHistogram } from './round-quotas.js';
 import { renderScriptureVerses } from './scripture-highlight.js';
+import {
+  CONCORDANCE_HIGHLIGHT_MS,
+  listUniqueWords,
+  searchScripture,
+} from './scripture-concordance.js';
+import {
+  FLASH_REVEAL_SPEEDS,
+  advanceRevealCount,
+  prefersReducedMotion,
+  revealedVerseText,
+  tokenizeVerse,
+} from './flash-reveal.js';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -39,6 +51,12 @@ const state = {
   flashIndex: 0,
   flashRevealed: false,
   flashDeck: 'memory',
+  flashSlowReveal: false,
+  flashRevealCount: 0,
+  flashWords: [],
+  flashAutoPlay: false,
+  flashRevealSpeed: 'normal',
+  flashRevealTimer: null,
   jeopardy: null,
   jeopardyMode: 'official',
   teams: [0, 0],
@@ -46,7 +64,7 @@ const state = {
   wordSearchStart: null,
   foundWords: new Set(),
   blank: null,
-  blankDifficulty: 'medium',
+  blankRatio: 0.22,
   quizPractice: [],
   quizPracticeIndex: 0,
   quizPracticeRevealed: false,
@@ -73,6 +91,10 @@ const state = {
   scriptureChapter: 1,
   scriptureShowMemory: true,
   scriptureShowUnique: true,
+  scriptureSearch: '',
+  scriptureUniqueFilter: '',
+  scriptureFocusVerse: null,
+  scriptureHighlightTimer: null,
 };
 
 if (params.has('embed') || window.self !== window.top) {
@@ -136,7 +158,24 @@ function resetPersonalizedGameState() {
 }
 
 function savePreferences() {
-  localStorage.setItem(storageKey, JSON.stringify({ chapter: state.chapter }));
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      chapter: state.chapter,
+      blankRatio: state.blankRatio,
+      flashSlowReveal: state.flashSlowReveal,
+      flashRevealSpeed: state.flashRevealSpeed,
+    }),
+  );
+}
+
+function migrateBlankRatio(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.min(1, value));
+  }
+  const legacy = { easy: 0.12, medium: 0.22, hard: 0.35 };
+  if (typeof value === 'string' && legacy[value] != null) return legacy[value];
+  return 0.22;
 }
 
 function loadPreferences() {
@@ -144,6 +183,15 @@ function loadPreferences() {
     const stored = JSON.parse(localStorage.getItem(storageKey));
     if (stored?.chapter === 'all' || state.data.metadata.enabledChapters.includes(Number(stored?.chapter))) {
       state.chapter = String(stored.chapter);
+    }
+    if (stored?.blankRatio != null || stored?.blankDifficulty != null) {
+      state.blankRatio = migrateBlankRatio(stored.blankRatio ?? stored.blankDifficulty);
+    }
+    if (typeof stored?.flashSlowReveal === 'boolean') {
+      state.flashSlowReveal = stored.flashSlowReveal;
+    }
+    if (stored?.flashRevealSpeed && FLASH_REVEAL_SPEEDS[stored.flashRevealSpeed]) {
+      state.flashRevealSpeed = stored.flashRevealSpeed;
     }
   } catch {
     localStorage.removeItem(storageKey);
@@ -231,16 +279,17 @@ function renderHome() {
     </section>
     <section class="game-grid" aria-label="Practice games">
       ${games
-        .map(
-          ([route, icon, title, description]) => `
+        .map(([route, icon, title, description]) => {
+          const actionLabel = route === 'scripture' ? 'Read Scripture' : `Play ${title}`;
+          return `
             <article class="game-card">
               <span class="game-card-icon" aria-hidden="true">${icon}</span>
               <h2>${title}</h2>
               <p>${description}</p>
-              <button type="button" data-route="${route}">Play ${title}</button>
+              <button type="button" data-route="${route}">${actionLabel}</button>
             </article>
-          `,
-        )
+          `;
+        })
         .join('')}
     </section>
   `;
@@ -674,7 +723,39 @@ function renderQuizPractice() {
   `;
 }
 
+function stopFlashRevealTimer() {
+  if (state.flashRevealTimer) window.clearInterval(state.flashRevealTimer);
+  state.flashRevealTimer = null;
+  state.flashAutoPlay = false;
+}
+
+function startFlashRevealAutoplay() {
+  if (state.flashRevealTimer) window.clearInterval(state.flashRevealTimer);
+  state.flashRevealed = true;
+  state.flashAutoPlay = true;
+  const delay = FLASH_REVEAL_SPEEDS[state.flashRevealSpeed] ?? FLASH_REVEAL_SPEEDS.normal;
+  state.flashRevealTimer = window.setInterval(() => {
+    state.flashRevealCount = advanceRevealCount(state.flashRevealCount, state.flashWords.length);
+    if (state.flashRevealCount >= state.flashWords.length) {
+      stopFlashRevealTimer();
+    }
+    renderFlashcards();
+  }, delay);
+}
+
+function syncFlashWords() {
+  const card = state.flashcards[state.flashIndex];
+  if (!card || state.flashDeck !== 'memory') {
+    state.flashWords = [];
+    state.flashRevealCount = 0;
+    return;
+  }
+  state.flashWords = tokenizeVerse(card.text);
+  state.flashRevealCount = 0;
+}
+
 function prepareFlashcards() {
+  stopFlashRevealTimer();
   const cards =
     state.flashDeck === 'questions' ? filteredQuizQuestions() : filteredData().memoryVerses;
   state.flashcards = adaptiveShuffle(
@@ -684,12 +765,25 @@ function prepareFlashcards() {
   );
   state.flashIndex = 0;
   state.flashRevealed = false;
+  syncFlashWords();
 }
 
 function renderFlashcards() {
   if (!state.flashcards.length) prepareFlashcards();
   const card = state.flashcards[state.flashIndex];
   const isQuestion = state.flashDeck === 'questions';
+  const slow = !isQuestion && state.flashSlowReveal;
+  if (
+    !isQuestion &&
+    (!state.flashWords.length ||
+      state.flashWords.join(' ') !== tokenizeVerse(card.text).join(' '))
+  ) {
+    syncFlashWords();
+  }
+  const verseBody = slow
+    ? revealedVerseText(state.flashWords, state.flashRevealCount)
+    : card.text;
+  const fullyRevealed = !slow || state.flashRevealCount >= state.flashWords.length;
   const front = isQuestion
     ? `<span class="flashcard-content">
         <span class="flashcard-type">${escapeHtml(card.type)}</span>
@@ -698,7 +792,7 @@ function renderFlashcards() {
       </span>`
     : `<span class="flashcard-content">
         <span class="flashcard-reference">${escapeHtml(card.reference)}</span>
-        <span class="game-meta">Tap to reveal the verse</span>
+        <span class="game-meta">${slow ? 'Tap to start revealing words' : 'Tap to reveal the verse'}</span>
       </span>`;
   const back = isQuestion
     ? `<span class="flashcard-content">
@@ -706,8 +800,13 @@ function renderFlashcards() {
         <span class="flashcard-answer-reference">${escapeHtml(card.reference)}</span>
       </span>`
     : `<span class="flashcard-content">
-        <span class="flashcard-text">${escapeHtml(card.text)}</span>
+        <span class="flashcard-text">${escapeHtml(verseBody)}</span>
         <span class="flashcard-jump">Jump words: ${escapeHtml(card.jumpWords)}</span>
+        ${
+          slow
+            ? `<span class="game-meta">${state.flashRevealCount} of ${state.flashWords.length} words</span>`
+            : ''
+        }
       </span>`;
   app.innerHTML = `
     ${renderGameHeader('Flash Cards', 'Practice memory verses or official quiz questions.')}
@@ -719,6 +818,16 @@ function renderFlashcards() {
           <option value="questions"${isQuestion ? ' selected' : ''}>Official questions</option>
         </select>
       </label>
+      ${
+        isQuestion
+          ? ''
+          : `
+        <label class="field checkbox-field">
+          <input id="flash-slow-reveal" type="checkbox"${state.flashSlowReveal ? ' checked' : ''}>
+          Slow reveal
+        </label>
+      `
+      }
     </div>
     <div class="status-row">
       <span>Card ${state.flashIndex + 1} of ${state.flashcards.length}</span>
@@ -727,6 +836,25 @@ function renderFlashcards() {
     <button class="flashcard" type="button" data-action="flip" aria-pressed="${state.flashRevealed}">
       ${state.flashRevealed ? back : front}
     </button>
+    ${
+      slow
+        ? `
+      <div class="controls flash-reveal-controls">
+        <button type="button" data-action="flash-next-word"${fullyRevealed && state.flashRevealed ? ' disabled' : ''}>Next word</button>
+        <button type="button" class="button-secondary" data-action="flash-reveal-all">Reveal all</button>
+        <button type="button" class="button-secondary" data-action="flash-autoplay">${state.flashAutoPlay ? 'Pause' : 'Auto-play'}</button>
+        <label class="field">
+          Speed
+          <select id="flash-reveal-speed">
+            <option value="slow"${state.flashRevealSpeed === 'slow' ? ' selected' : ''}>Slow</option>
+            <option value="normal"${state.flashRevealSpeed === 'normal' ? ' selected' : ''}>Normal</option>
+            <option value="fast"${state.flashRevealSpeed === 'fast' ? ' selected' : ''}>Fast</option>
+          </select>
+        </label>
+      </div>
+    `
+        : ''
+    }
     <div class="controls">
       <button type="button" class="button-secondary" data-action="flash-prev">Previous</button>
       <button type="button" data-action="flip">${state.flashRevealed ? 'Hide' : 'Reveal'} ${isQuestion ? 'answer' : 'verse'}</button>
@@ -740,47 +868,65 @@ function renderFlashcards() {
 
 function newBlank() {
   const verses = adaptiveShuffle(filteredData().memoryVerses, 'verses', activeProfile());
-  state.blank = createBlankQuestion(
-    verses[0],
-    state.blankDifficulty,
-  );
+  state.blank = createBlankQuestion(verses[0], state.blankRatio);
+}
+
+function refreshBlankSameVerse() {
+  if (!state.blank?.verse) {
+    newBlank();
+    return;
+  }
+  state.blank = createBlankQuestion(state.blank.verse, state.blankRatio);
 }
 
 function renderFillBlank() {
   if (!state.blank) newBlank();
   const { verse, words, answers } = state.blank;
+  const percent = Math.round(state.blankRatio * 100);
   app.innerHTML = `
     ${renderGameHeader('Fill in the Blank', 'Type each missing word, then check your answer.')}
     <section class="panel center">
       <div class="toolbar">
-        <label class="field">
-          Difficulty
-          <select id="blank-difficulty">
-            <option value="easy"${state.blankDifficulty === 'easy' ? ' selected' : ''}>Easy</option>
-            <option value="medium"${state.blankDifficulty === 'medium' ? ' selected' : ''}>Medium</option>
-            <option value="hard"${state.blankDifficulty === 'hard' ? ' selected' : ''}>Hard</option>
-          </select>
+        <label class="field blank-ratio-field">
+          Blank difficulty
+          <input
+            id="blank-ratio"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="${percent}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="${percent}"
+            aria-valuetext="${percent} percent blanks"
+          >
+          <span id="blank-ratio-label" class="game-meta">${percent}% blanks</span>
         </label>
         <button type="button" data-action="blank-new">New verse</button>
       </div>
       <p class="eyebrow">${escapeHtml(verse.reference)}</p>
       <div class="blank-verse">
-        ${words
-          .map((word, index) =>
-            answers.has(index)
-              ? `<label>
+        ${
+          answers.size === 0
+            ? escapeHtml(words.join(' '))
+            : words
+                .map((word, index) =>
+                  answers.has(index)
+                    ? `<label>
                   <span class="sr-only">Missing word ${index + 1}</span>
                   <input class="blank-input" type="text" data-blank-index="${index}" autocomplete="off">
                 </label>`
-              : escapeHtml(word),
-          )
-          .join(' ')}
+                    : escapeHtml(word),
+                )
+                .join(' ')
+        }
       </div>
       <div id="blank-result" aria-live="polite"></div>
       <div class="controls">
-        <button type="button" data-action="blank-check">Check answers</button>
-        <button type="button" class="button-secondary" data-action="blank-hint">Give a hint</button>
-        <button type="button" class="button-secondary" data-action="blank-reveal">Reveal answer</button>
+        <button type="button" data-action="blank-check"${answers.size ? '' : ' disabled'}>Check answers</button>
+        <button type="button" class="button-secondary" data-action="blank-hint"${answers.size ? '' : ' disabled'}>Give a hint</button>
+        <button type="button" class="button-secondary" data-action="blank-reveal"${answers.size ? '' : ' disabled'}>Reveal answer</button>
       </div>
     </section>
   `;
@@ -1051,6 +1197,28 @@ function renderSituationChallenge() {
   `;
 }
 
+function clearScriptureHighlightTimer() {
+  if (state.scriptureHighlightTimer) window.clearTimeout(state.scriptureHighlightTimer);
+  state.scriptureHighlightTimer = null;
+}
+
+function jumpToScriptureVerse(chapter, verse) {
+  clearScriptureHighlightTimer();
+  state.scriptureChapter = Number(chapter);
+  state.scriptureFocusVerse = Number(verse);
+  renderScripture();
+  window.requestAnimationFrame(() => {
+    const target = document.querySelector(`[data-verse="${verse}"]`);
+    target?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+  });
+  state.scriptureHighlightTimer = window.setTimeout(() => {
+    state.scriptureFocusVerse = null;
+    state.scriptureHighlightTimer = null;
+    const focused = document.querySelector('.concordance-focus');
+    focused?.classList.remove('concordance-focus');
+  }, CONCORDANCE_HIGHLIGHT_MS);
+}
+
 function renderScripture() {
   const chapters = state.data.scriptureChapters ?? [];
   if (!chapters.length) {
@@ -1074,10 +1242,18 @@ function renderScripture() {
   const body = renderScriptureVerses(chapterRecord.verses, memoryVerses, uniqueWords, {
     showMemory: state.scriptureShowMemory,
     showUnique: state.scriptureShowUnique,
+    focusVerse: state.scriptureFocusVerse,
+  });
+  const searchResults = searchScripture(chapters, state.scriptureSearch, {
+    chapterFilter: state.scriptureChapter,
+  });
+  const uniqueBrowser = listUniqueWords(uniqueWords, {
+    chapterFilter: state.scriptureChapter,
+    query: state.scriptureUniqueFilter,
   });
 
   app.innerHTML = `
-    ${renderGameHeader('Scripture', 'Read the chapter with optional memory and unique-word highlights.')}
+    ${renderGameHeader('Scripture', 'Read the chapter with concordance search and study highlights.')}
     <section class="panel">
       <div class="toolbar">
         <label class="field">
@@ -1102,6 +1278,52 @@ function renderScripture() {
           Unique words
         </label>
       </div>
+      <div class="concordance-panel">
+        <label class="field">
+          Search this chapter
+          <input id="scripture-search" type="search" value="${escapeHtml(state.scriptureSearch)}" placeholder="Word or phrase" autocomplete="off">
+        </label>
+        <ul class="concordance-results" role="listbox" aria-label="Scripture search results">
+          ${
+            state.scriptureSearch.trim()
+              ? searchResults.length
+                ? searchResults
+                    .map(
+                      (row) => `
+                <li>
+                  <button type="button" class="concordance-hit" role="option" data-jump-chapter="${row.chapter}" data-jump-verse="${row.verse}">
+                    <strong>${escapeHtml(row.reference)}</strong>
+                    <span>${escapeHtml(row.snippet)}</span>
+                  </button>
+                </li>`,
+                    )
+                    .join('')
+                : '<li class="game-meta">No matches in this chapter.</li>'
+              : '<li class="game-meta">Type a word or phrase to search.</li>'
+          }
+        </ul>
+        <label class="field">
+          Unique words
+          <input id="scripture-unique-filter" type="search" value="${escapeHtml(state.scriptureUniqueFilter)}" placeholder="Filter unique words" autocomplete="off">
+        </label>
+        <ul class="unique-word-browser" role="listbox" aria-label="Unique words for this chapter">
+          ${
+            uniqueBrowser.length
+              ? uniqueBrowser
+                  .map(
+                    (row) => `
+              <li>
+                <button type="button" class="concordance-hit" role="option" data-jump-chapter="${row.chapter}" data-jump-verse="${row.verseStart}">
+                  <strong>${escapeHtml(row.word)}</strong>
+                  <span>${escapeHtml(row.reference)}</span>
+                </button>
+              </li>`,
+                  )
+                  .join('')
+              : '<li class="game-meta">No unique words match this filter.</li>'
+          }
+        </ul>
+      </div>
       <div class="scripture-legend game-meta" aria-hidden="true">
         <span class="legend-memory">Memory verse</span>
         <span class="legend-unique">Unique word</span>
@@ -1124,6 +1346,8 @@ function routeTo(route) {
     stopBuzzerReader();
     stopSpeedTimer();
   }
+  if (route !== 'flashcards') stopFlashRevealTimer();
+  if (route !== 'scripture') clearScriptureHighlightTimer();
   state.blank = null;
   state.wordSearch = null;
   state.jeopardy = null;
@@ -1343,8 +1567,14 @@ document.addEventListener('click', (event) => {
     renderQuizPractice();
   }
   if (target.dataset.action === 'flip') {
+    const card = state.flashcards[state.flashIndex];
+    const slow = state.flashDeck === 'memory' && state.flashSlowReveal;
+    if (slow && state.flashRevealed && state.flashRevealCount < state.flashWords.length) {
+      state.flashRevealCount = advanceRevealCount(state.flashRevealCount, state.flashWords.length);
+      renderFlashcards();
+      return;
+    }
     if (!state.flashRevealed) {
-      const card = state.flashcards[state.flashIndex];
       trackActivity({
         contentType: state.flashDeck === 'questions' ? 'questions' : 'verses',
         contentId: state.flashDeck === 'questions' ? card.id : card.reference,
@@ -1353,14 +1583,43 @@ document.addEventListener('click', (event) => {
         chapter: card.chapter,
         questionType: card.typeCode,
       });
+      if (slow) {
+        state.flashRevealCount = Math.max(1, state.flashRevealCount);
+      }
+    } else if (slow) {
+      stopFlashRevealTimer();
+      state.flashRevealCount = 0;
     }
     state.flashRevealed = !state.flashRevealed;
     renderFlashcards();
   }
+  if (target.dataset.action === 'flash-next-word') {
+    if (!state.flashRevealed) state.flashRevealed = true;
+    state.flashRevealCount = advanceRevealCount(state.flashRevealCount, state.flashWords.length);
+    if (state.flashRevealCount >= state.flashWords.length) stopFlashRevealTimer();
+    renderFlashcards();
+  }
+  if (target.dataset.action === 'flash-reveal-all') {
+    stopFlashRevealTimer();
+    state.flashRevealed = true;
+    state.flashRevealCount = state.flashWords.length;
+    renderFlashcards();
+  }
+  if (target.dataset.action === 'flash-autoplay') {
+    if (state.flashAutoPlay) {
+      stopFlashRevealTimer();
+      renderFlashcards();
+      return;
+    }
+    startFlashRevealAutoplay();
+    renderFlashcards();
+  }
   if (target.dataset.action === 'flash-next' || target.dataset.action === 'flash-prev') {
+    stopFlashRevealTimer();
     const direction = target.dataset.action === 'flash-next' ? 1 : -1;
     state.flashIndex = (state.flashIndex + direction + state.flashcards.length) % state.flashcards.length;
     state.flashRevealed = false;
+    syncFlashWords();
     renderFlashcards();
   }
   if (target.dataset.action === 'flash-shuffle') {
@@ -1371,6 +1630,7 @@ document.addEventListener('click', (event) => {
     target.dataset.action === 'flash-practice' ||
     target.dataset.action === 'flash-correct'
   ) {
+    stopFlashRevealTimer();
     const card = state.flashcards[state.flashIndex];
     const result = target.dataset.action === 'flash-correct' ? 'correct' : 'review';
     trackActivity({
@@ -1383,8 +1643,12 @@ document.addEventListener('click', (event) => {
     });
     state.flashIndex = (state.flashIndex + 1) % state.flashcards.length;
     state.flashRevealed = false;
+    syncFlashWords();
     renderFlashcards();
     announce(result === 'correct' ? 'Marked correct. Next card.' : 'Marked for review. Next card.');
+  }
+  if (target.dataset.jumpChapter) {
+    jumpToScriptureVerse(target.dataset.jumpChapter, target.dataset.jumpVerse);
   }
   if (target.dataset.action === 'blank-new') {
     newBlank();
@@ -1538,15 +1802,38 @@ document.addEventListener('change', async (event) => {
     savePreferences();
     renderHome();
   }
-  if (event.target.id === 'blank-difficulty') {
-    state.blankDifficulty = event.target.value;
-    newBlank();
+  if (event.target.id === 'blank-ratio') {
+    state.blankRatio = Number(event.target.value) / 100;
+    savePreferences();
+    const label = document.querySelector('#blank-ratio-label');
+    if (label) label.textContent = `${Math.round(state.blankRatio * 100)}% blanks`;
+    refreshBlankSameVerse();
     renderFillBlank();
   }
   if (event.target.id === 'flash-deck') {
     state.flashDeck = event.target.value;
     prepareFlashcards();
     renderFlashcards();
+  }
+  if (event.target.id === 'flash-slow-reveal') {
+    stopFlashRevealTimer();
+    state.flashSlowReveal = event.target.checked;
+    // Reduced motion: auto-play stays off by default; user may still enable it.
+    if (state.flashSlowReveal && prefersReducedMotion()) {
+      state.flashAutoPlay = false;
+    }
+    state.flashRevealed = false;
+    syncFlashWords();
+    savePreferences();
+    renderFlashcards();
+  }
+  if (event.target.id === 'flash-reveal-speed') {
+    state.flashRevealSpeed = event.target.value;
+    savePreferences();
+    if (state.flashAutoPlay) {
+      startFlashRevealAutoplay();
+      renderFlashcards();
+    }
   }
   if (event.target.id === 'jeopardy-mode') {
     state.jeopardyMode = event.target.value;
@@ -1559,6 +1846,7 @@ document.addEventListener('change', async (event) => {
   }
   if (event.target.id === 'scripture-chapter') {
     state.scriptureChapter = Number(event.target.value);
+    state.scriptureFocusVerse = null;
     renderScripture();
   }
   if (event.target.id === 'scripture-memory') {
@@ -1568,6 +1856,61 @@ document.addEventListener('change', async (event) => {
   if (event.target.id === 'scripture-unique') {
     state.scriptureShowUnique = event.target.checked;
     renderScripture();
+  }
+  if (event.target.id === 'scripture-search') {
+    state.scriptureSearch = event.target.value;
+    renderScripture();
+    const input = document.querySelector('#scripture-search');
+    if (input) {
+      input.focus();
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    }
+  }
+  if (event.target.id === 'scripture-unique-filter') {
+    state.scriptureUniqueFilter = event.target.value;
+    renderScripture();
+    const input = document.querySelector('#scripture-unique-filter');
+    if (input) {
+      input.focus();
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    }
+  }
+});
+
+document.addEventListener('input', (event) => {
+  if (event.target.id === 'blank-ratio') {
+    state.blankRatio = Number(event.target.value) / 100;
+    const label = document.querySelector('#blank-ratio-label');
+    if (label) label.textContent = `${Math.round(state.blankRatio * 100)}% blanks`;
+    event.target.setAttribute('aria-valuenow', String(Math.round(state.blankRatio * 100)));
+    event.target.setAttribute(
+      'aria-valuetext',
+      `${Math.round(state.blankRatio * 100)} percent blanks`,
+    );
+  }
+  if (event.target.id === 'scripture-search') {
+    state.scriptureSearch = event.target.value;
+    const caret = event.target.selectionStart;
+    renderScripture();
+    const input = document.querySelector('#scripture-search');
+    if (input) {
+      input.focus();
+      const pos = caret ?? input.value.length;
+      input.setSelectionRange(pos, pos);
+    }
+  }
+  if (event.target.id === 'scripture-unique-filter') {
+    state.scriptureUniqueFilter = event.target.value;
+    const caret = event.target.selectionStart;
+    renderScripture();
+    const input = document.querySelector('#scripture-unique-filter');
+    if (input) {
+      input.focus();
+      const pos = caret ?? input.value.length;
+      input.setSelectionRange(pos, pos);
+    }
   }
 });
 

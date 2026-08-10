@@ -50,10 +50,39 @@ test('shuffle does not mutate its input', () => {
   assert.notDeepEqual(result, input);
 });
 
-test('blank questions hide at least one eligible word', () => {
-  const question = createBlankQuestion(verses[0], 'easy', () => 0.5);
+test('blank ratio 0 hides no words', () => {
+  const question = createBlankQuestion(verses[0], 0, () => 0.5);
+  assert.equal(question.answers.size, 0);
+  assert.equal(question.blankRatio, 0);
+});
+
+test('blank ratio 1 percent hides at least one eligible word', () => {
+  const question = createBlankQuestion(verses[0], 0.01, () => 0.5);
   assert.ok(question.answers.size >= 1);
-  assert.equal(question.difficulty, 'easy');
+  for (const index of question.answers.keys()) {
+    assert.ok(normalizeAnswer(question.words[index]).length >= 4);
+  }
+});
+
+test('blank ratio 22 percent matches expected eligible count', () => {
+  const eligibleCount = verses[0].text
+    .split(' ')
+    .filter((word) => normalizeAnswer(word).length >= 4).length;
+  const expected = Math.max(1, Math.round(eligibleCount * 0.22));
+  const question = createBlankQuestion(verses[0], 0.22, () => 0.5);
+  assert.equal(question.answers.size, expected);
+  assert.equal(question.blankRatio, 0.22);
+});
+
+test('blank ratio 100 percent blanks every word', () => {
+  const question = createBlankQuestion(verses[0], 1, () => 0.5);
+  assert.equal(question.answers.size, question.words.length);
+  assert.equal(question.blankRatio, 1);
+});
+
+test('blank ratio clamps outside 0..1', () => {
+  assert.equal(createBlankQuestion(verses[0], -2, () => 0.5).blankRatio, 0);
+  assert.equal(createBlankQuestion(verses[0], 4, () => 0.5).blankRatio, 1);
 });
 
 test('cellsOnLine accepts horizontal, vertical, and diagonal lines', () => {
