@@ -164,6 +164,9 @@ const data = {
     title: 'The Gospel of John',
     season: '2026-27',
     enabledChapters: [...enabledChapters],
+    scriptureBookChapters: {
+      John: 21,
+    },
     generatedAt: new Date().toISOString(),
     sourceFiles,
     questionSource: 'official',

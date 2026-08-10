@@ -9,7 +9,10 @@
       4,
       5
     ],
-    "generatedAt": "2026-08-10T03:22:19.665Z",
+    "scriptureBookChapters": {
+      "John": 21
+    },
+    "generatedAt": "2026-08-10T03:36:25.601Z",
     "sourceFiles": [
       "memory-verses-2026-27.csv",
       "unique-words-2026-27.csv",

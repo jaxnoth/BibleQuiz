@@ -73,6 +73,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] ApiBibleProvider + Azure Functions `/api/scripture/*` proxy (key server-side only).
 - [x] Session-owned FUMS reporting; metadata-driven footer links.
 - [x] `validateVisibleContent` / `canRender` helpers (no V1 UI blocking).
+- [x] Scripture reader lists full John 1-21 via API.Bible (hybrid provider; quiz enabledChapters stay 1-5).
 
 ### Flash cards
 

@@ -24,8 +24,7 @@ import {
 import { selectRoundQuestions, typeHistogram } from './round-quotas.js';
 import { renderScriptureVerses } from './scripture-highlight.js';
 import { CONCORDANCE_HIGHLIGHT_MS } from './scripture-concordance.js';
-import { createLocalScriptureProvider } from './scripture-provider.js';
-import { createApiBibleProvider, probeApiBibleProvider } from './api-bible-provider.js';
+import { createHybridScriptureProvider } from './hybrid-scripture-provider.js';
 import { createScriptureSession } from './scripture-session.js';
 import {
   FLASH_REVEAL_SPEEDS,
@@ -1977,12 +1976,9 @@ async function initialize() {
     const response = await fetch('data/study-data.json');
     if (!response.ok) throw new Error(`Study data returned ${response.status}`);
     state.data = await response.json();
-    const apiMeta = await probeApiBibleProvider();
-    if (apiMeta) {
-      state.scriptureProvider = createApiBibleProvider();
-    } else {
-      state.scriptureProvider = createLocalScriptureProvider(state.data);
-    }
+    // Prefer API.Bible for full John chapter text; Local covers offline John 1-5.
+    // Quiz/game enabledChapters stay 1-5 and are unrelated to Scripture listing.
+    state.scriptureProvider = createHybridScriptureProvider(state.data);
     state.scriptureSession = createScriptureSession(state.scriptureProvider, state.data);
     state.profileStore = loadProfileStore();
     persistProfiles();

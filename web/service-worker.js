@@ -1,4 +1,4 @@
-const cacheName = 'bible-quiz-v8';
+const cacheName = 'bible-quiz-v10';
 const assets = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const assets = [
   './js/scripture-provider.js',
   './js/scripture-session.js',
   './js/api-bible-provider.js',
+  './js/hybrid-scripture-provider.js',
   './data/study-data.json',
   './manifest.webmanifest',
   './icons/icon.svg',

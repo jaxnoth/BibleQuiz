@@ -156,7 +156,7 @@ BibleQuiz optimizes for replaceable Scripture sources and provider-enforced lice
 
 Flow: `UI -> scripture-session.js -> ScriptureProvider` (`LocalScriptureProvider` or `ApiBibleProvider` via `/api/scripture/*` proxy).
 
-Prefer API when `/api/scripture/metadata` succeeds; otherwise fall back to Local (offline / plain `npm start`).
+Prefer API when `/api/scripture` is reachable (full John 1-21 via API.Bible). Local bundled John 1-5 remains the offline fallback. Quiz/game `enabledChapters` stay John 1-5 and do not limit the Scripture reader.
 
 Shared metadata shape (both providers): `provider`, `source`, `translation`, `abbreviation`, `copyright`, `copyrightHtml`, `scriptureAttribution`, `distribution`, `ipHolder`, `ipHolderUrl`, `providerUrl`, `requiresBiblicaLink`, `capabilities`, `limits`.
 
