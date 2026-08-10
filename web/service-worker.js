@@ -1,4 +1,4 @@
-const cacheName = 'bible-quiz-v7';
+const cacheName = 'bible-quiz-v8';
 const assets = [
   './',
   './index.html',
@@ -6,10 +6,22 @@ const assets = [
   './js/app.js',
   './js/game-engine.js',
   './js/progress-store.js',
+  './js/scripture-provider.js',
+  './js/scripture-session.js',
+  './js/api-bible-provider.js',
   './data/study-data.json',
   './manifest.webmanifest',
   './icons/icon.svg',
 ];
+
+function isScriptureApiRequest(url) {
+  try {
+    const path = new URL(url).pathname;
+    return path.startsWith('/api/scripture') || path.includes('/api/scripture');
+  } catch {
+    return false;
+  }
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(assets)));
@@ -27,6 +39,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Never cache API.Bible proxy responses (license / freshness).
+  if (isScriptureApiRequest(event.request.url)) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

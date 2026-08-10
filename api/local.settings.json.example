@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "API_BIBLE_KEY": "replace-with-api-bible-key",
+    "API_BIBLE_BIBLE_ID": "replace-with-niv-bible-id"
+  }
+}

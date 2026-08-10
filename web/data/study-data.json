@@ -9,7 +9,7 @@
       4,
       5
     ],
-    "generatedAt": "2026-08-10T02:02:27.170Z",
+    "generatedAt": "2026-08-10T03:22:19.665Z",
     "sourceFiles": [
       "memory-verses-2026-27.csv",
       "unique-words-2026-27.csv",
@@ -30,8 +30,17 @@
       "Scripture/John 5.md"
     ],
     "questionSource": "official",
-    "distribution": "internal-personal",
-    "scriptureAttribution": "Scripture text retained for internal personal practice only. Confirm translation permission and required copyright notice before any public distribution."
+    "distribution": "internal-team",
+    "translation": "NIV",
+    "abbreviation": "NIV",
+    "source": "bundled-study-data",
+    "scriptureAttribution": "Scripture text retained for internal personal practice only. Confirm translation permission and required copyright notice before any public distribution.",
+    "copyright": "",
+    "copyrightHtml": "",
+    "ipHolder": "Biblica",
+    "ipHolderUrl": "https://www.biblica.com",
+    "providerUrl": "",
+    "requiresBiblicaLink": false
   },
   "memoryVerses": [
     {

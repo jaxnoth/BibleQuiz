@@ -38,13 +38,23 @@ function textContainsQuery(text, query) {
 
 /**
  * Search Scripture chapter text. Empty query returns []. Cap at MAX_RESULTS.
+ * Local search engine for LocalScriptureProvider only - UI must go through
+ * scripture-session / provider, not call this from app routes.
  */
-export function searchScripture(chapters, query, { chapterFilter } = {}) {
+export function searchScripture(chapters, query, { chapterFilter, bookFilter } = {}) {
   const needle = normalizeSearch(query);
   if (!needle) return [];
 
   const results = [];
   for (const chapter of chapters ?? []) {
+    if (
+      bookFilter != null &&
+      bookFilter !== 'all' &&
+      String(chapter.book ?? '').toLocaleLowerCase('en-US') !==
+        String(bookFilter).toLocaleLowerCase('en-US')
+    ) {
+      continue;
+    }
     if (
       chapterFilter != null &&
       chapterFilter !== 'all' &&
@@ -52,12 +62,14 @@ export function searchScripture(chapters, query, { chapterFilter } = {}) {
     ) {
       continue;
     }
+    const book = chapter.book || 'John';
     for (const verse of chapter.verses ?? []) {
       if (!textContainsQuery(verse.text, needle)) continue;
       results.push({
+        book,
         chapter: chapter.chapter,
         verse: verse.verse,
-        reference: verse.reference ?? `John ${chapter.chapter}:${verse.verse}`,
+        reference: verse.reference ?? `${book} ${chapter.chapter}:${verse.verse}`,
         snippet: snippetAround(verse.text, needle),
       });
       if (results.length >= MAX_RESULTS) return results;

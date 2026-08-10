@@ -65,6 +65,14 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Toggles for memory and unique highlights.
 - [x] Home CTA reads **Read Scripture** (card title stays Scripture).
 - [x] Concordance: free-text chapter search + unique-word browser with jump/highlight.
+- [x] ScriptureProvider architecture complete (async contract; capabilities/limits metadata).
+- [x] Scripture session facade complete (joins provider text with study overlays).
+- [x] LocalScriptureProvider implemented.
+- [x] Scripture UI no longer reads state.data.scriptureChapters directly.
+- [x] Metadata footer supports provider metadata (translation, attribution, source, IP-holder links when present).
+- [x] ApiBibleProvider + Azure Functions `/api/scripture/*` proxy (key server-side only).
+- [x] Session-owned FUMS reporting; metadata-driven footer links.
+- [x] `validateVisibleContent` / `canRender` helpers (no V1 UI blocking).
 
 ### Flash cards
 
@@ -139,6 +147,33 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Document repository and deployment setup.
 
 ## Future candidates
+
+## Future: API.Bible provider
+
+- [x] Build secure backend/proxy for API.Bible key handling.
+- [x] Do not expose API.Bible key in browser JavaScript.
+- [x] Implement API.Bible FUMS (session-owned; provider returns `fumsToken`).
+- [x] Load copyright/attribution metadata from API.Bible via proxy.
+- [x] Display API.Bible visible link for Starter Plan use (metadata-driven).
+- [x] Display Biblica link when NIV policy sets `requiresBiblicaLink` (proxy policy, not client hardcode).
+- [ ] Wire `validateVisibleContent` into UI when a view can exceed chapter/verse limits (helper exists; single-chapter reader already complies).
+- [ ] Avoid persistent Scripture caching until 30-day refresh and removal workflows are implemented.
+- [x] Do not export API.Bible Scripture into study-data.json.
+- [x] Do not use API.Bible copyrighted text for AI/LLM training, AI-generated derivatives, personalized AI/ML content, or text-to-speech.
+- [ ] Add translation selector later: NIV primary, NLT comprehension, third translation TBD.
+
+### Future: Translation-specific policy metadata
+
+Different providers or translations may require:
+- attribution links
+- verse limits
+- chapter limits
+- refresh intervals
+- IP holder links
+
+Provider metadata should drive compliance rather than hard-coded NIV assumptions. Server policy lives in `api/lib/translation-policy.js`.
+
+### Other
 
 - [ ] Finish this verse (`V`) question bank.
 - [ ] Finish + give reference (`R`) question bank (workshop Reference; not Reference matching).

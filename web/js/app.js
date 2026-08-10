@@ -23,11 +23,10 @@ import {
 } from './progress-store.js';
 import { selectRoundQuestions, typeHistogram } from './round-quotas.js';
 import { renderScriptureVerses } from './scripture-highlight.js';
-import {
-  CONCORDANCE_HIGHLIGHT_MS,
-  listUniqueWords,
-  searchScripture,
-} from './scripture-concordance.js';
+import { CONCORDANCE_HIGHLIGHT_MS } from './scripture-concordance.js';
+import { createLocalScriptureProvider } from './scripture-provider.js';
+import { createApiBibleProvider, probeApiBibleProvider } from './api-bible-provider.js';
+import { createScriptureSession } from './scripture-session.js';
 import {
   FLASH_REVEAL_SPEEDS,
   advanceRevealCount,
@@ -45,6 +44,9 @@ const storageKey = 'bibleQuiz.preferences';
 
 const state = {
   data: null,
+  scriptureProvider: null,
+  scriptureSession: null,
+  scriptureBook: 'John',
   profileStore: null,
   chapter: 'all',
   flashcards: [],
@@ -1206,10 +1208,11 @@ function jumpToScriptureVerse(chapter, verse) {
   clearScriptureHighlightTimer();
   state.scriptureChapter = Number(chapter);
   state.scriptureFocusVerse = Number(verse);
-  renderScripture();
-  window.requestAnimationFrame(() => {
-    const target = document.querySelector(`[data-verse="${verse}"]`);
-    target?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+  void renderScripture().then(() => {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-verse="${verse}"]`);
+      target?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+    });
   });
   state.scriptureHighlightTimer = window.setTimeout(() => {
     state.scriptureFocusVerse = null;
@@ -1219,38 +1222,83 @@ function jumpToScriptureVerse(chapter, verse) {
   }, CONCORDANCE_HIGHLIGHT_MS);
 }
 
-function renderScripture() {
-  const chapters = state.data.scriptureChapters ?? [];
-  if (!chapters.length) {
+async function renderScripture() {
+  const session = state.scriptureSession;
+  if (!session) {
     app.innerHTML = `
       ${renderGameHeader('Scripture', 'Chapter text is not available in this build.')}
       <section class="panel"><p>Regenerate study data to include Scripture chapters.</p></section>
     `;
     return;
   }
-  if (!chapters.some((chapter) => chapter.chapter === state.scriptureChapter)) {
-    state.scriptureChapter = chapters[0].chapter;
+
+  const book = state.scriptureBook || 'John';
+  const chapterNumbers = await session.listChapters(book);
+  if (!chapterNumbers.length) {
+    app.innerHTML = `
+      ${renderGameHeader('Scripture', 'Chapter text is not available in this build.')}
+      <section class="panel"><p>Regenerate study data to include Scripture chapters.</p></section>
+    `;
+    return;
   }
-  const chapterRecord = chapters.find((chapter) => chapter.chapter === state.scriptureChapter);
-  const memoryVerses = state.data.memoryVerses.filter(
-    (verse) => verse.chapter === state.scriptureChapter,
-  );
-  const uniqueWords = state.data.uniqueWords.filter(
-    (word) => word.chapter === state.scriptureChapter,
-  );
-  const attribution = state.data.metadata.scriptureAttribution ?? '';
-  const body = renderScriptureVerses(chapterRecord.verses, memoryVerses, uniqueWords, {
+  if (!chapterNumbers.includes(Number(state.scriptureChapter))) {
+    state.scriptureChapter = chapterNumbers[0];
+  }
+
+  const view = await session.getChapterView(book, state.scriptureChapter);
+  const body = renderScriptureVerses(view.verses, view.memoryVerses, view.uniqueWords, {
     showMemory: state.scriptureShowMemory,
     showUnique: state.scriptureShowUnique,
     focusVerse: state.scriptureFocusVerse,
   });
-  const searchResults = searchScripture(chapters, state.scriptureSearch, {
-    chapterFilter: state.scriptureChapter,
+  const searchResults = await session.search(state.scriptureSearch, {
+    book,
+    chapter: state.scriptureChapter,
   });
-  const uniqueBrowser = listUniqueWords(uniqueWords, {
-    chapterFilter: state.scriptureChapter,
+  const uniqueBrowser = await session.listUniqueWords({
+    chapter: state.scriptureChapter,
     query: state.scriptureUniqueFilter,
   });
+  const translation = view.metadata?.translation || '';
+  const abbreviation = view.metadata?.abbreviation || '';
+  const attribution =
+    view.metadata?.scriptureAttribution || view.metadata?.copyright || '';
+  const source = view.metadata?.source || '';
+  const providerUrl = view.metadata?.providerUrl || '';
+  const ipHolder = view.metadata?.ipHolder || '';
+  const ipHolderUrl = view.metadata?.ipHolderUrl || '';
+  const requiresBiblicaLink = Boolean(view.metadata?.requiresBiblicaLink);
+  const requiresAttributionLink = Boolean(view.metadata?.limits?.requiresAttributionLink);
+  const label =
+    [abbreviation || translation, translation && abbreviation && abbreviation !== translation ? translation : '']
+      .filter(Boolean)
+      .join(' - ') ||
+    translation ||
+    abbreviation;
+  const footerParts = [];
+  if (label) footerParts.push(`<p class="scripture-translation">${escapeHtml(label)}</p>`);
+  if (source) footerParts.push(`<p class="scripture-source">Source: ${escapeHtml(source)}</p>`);
+  if (attribution) footerParts.push(`<p class="scripture-attribution">${escapeHtml(attribution)}</p>`);
+  if (providerUrl && (requiresAttributionLink || view.metadata?.provider === 'api.bible')) {
+    footerParts.push(
+      `<p class="scripture-provider-link"><a href="${escapeHtml(providerUrl)}" target="_blank" rel="noopener noreferrer">API.Bible</a></p>`,
+    );
+  } else if (providerUrl) {
+    footerParts.push(
+      `<p class="scripture-provider-link"><a href="${escapeHtml(providerUrl)}" target="_blank" rel="noopener noreferrer">Provider</a></p>`,
+    );
+  }
+  if (requiresBiblicaLink && ipHolderUrl) {
+    footerParts.push(
+      `<p class="scripture-ip-link"><a href="${escapeHtml(ipHolderUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ipHolder || 'Copyright holder')}</a></p>`,
+    );
+  } else if (ipHolder && ipHolderUrl) {
+    footerParts.push(
+      `<p class="scripture-ip-link"><a href="${escapeHtml(ipHolderUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ipHolder)}</a></p>`,
+    );
+  } else if (ipHolder) {
+    footerParts.push(`<p class="scripture-ip-holder">${escapeHtml(ipHolder)}</p>`);
+  }
 
   app.innerHTML = `
     ${renderGameHeader('Scripture', 'Read the chapter with concordance search and study highlights.')}
@@ -1259,12 +1307,12 @@ function renderScripture() {
         <label class="field">
           Chapter
           <select id="scripture-chapter">
-            ${chapters
+            ${chapterNumbers
               .map(
                 (chapter) =>
-                  `<option value="${chapter.chapter}"${
-                    chapter.chapter === state.scriptureChapter ? ' selected' : ''
-                  }>John ${chapter.chapter}</option>`,
+                  `<option value="${chapter}"${
+                    chapter === state.scriptureChapter ? ' selected' : ''
+                  }>${escapeHtml(book)} ${chapter}</option>`,
               )
               .join('')}
           </select>
@@ -1328,12 +1376,12 @@ function renderScripture() {
         <span class="legend-memory">Memory verse</span>
         <span class="legend-unique">Unique word</span>
       </div>
-      <article class="scripture-text" aria-label="John ${state.scriptureChapter}">
+      <article class="scripture-text" aria-label="${escapeHtml(book)} ${state.scriptureChapter}">
         ${body}
       </article>
       ${
-        attribution
-          ? `<p class="game-meta scripture-attribution">${escapeHtml(attribution)}</p>`
+        footerParts.length
+          ? `<footer class="scripture-footer game-meta">${footerParts.join('')}</footer>`
           : ''
       }
     </section>
@@ -1362,7 +1410,7 @@ function routeTo(route) {
   }
   if (route === 'scripture') {
     if (state.chapter !== 'all') state.scriptureChapter = Number(state.chapter);
-    renderScripture();
+    void renderScripture();
   }
   if (route === 'flashcards') {
     prepareFlashcards();
@@ -1847,35 +1895,37 @@ document.addEventListener('change', async (event) => {
   if (event.target.id === 'scripture-chapter') {
     state.scriptureChapter = Number(event.target.value);
     state.scriptureFocusVerse = null;
-    renderScripture();
+    void renderScripture();
   }
   if (event.target.id === 'scripture-memory') {
     state.scriptureShowMemory = event.target.checked;
-    renderScripture();
+    void renderScripture();
   }
   if (event.target.id === 'scripture-unique') {
     state.scriptureShowUnique = event.target.checked;
-    renderScripture();
+    void renderScripture();
   }
   if (event.target.id === 'scripture-search') {
     state.scriptureSearch = event.target.value;
-    renderScripture();
-    const input = document.querySelector('#scripture-search');
-    if (input) {
-      input.focus();
-      const end = input.value.length;
-      input.setSelectionRange(end, end);
-    }
+    void renderScripture().then(() => {
+      const input = document.querySelector('#scripture-search');
+      if (input) {
+        input.focus();
+        const end = input.value.length;
+        input.setSelectionRange(end, end);
+      }
+    });
   }
   if (event.target.id === 'scripture-unique-filter') {
     state.scriptureUniqueFilter = event.target.value;
-    renderScripture();
-    const input = document.querySelector('#scripture-unique-filter');
-    if (input) {
-      input.focus();
-      const end = input.value.length;
-      input.setSelectionRange(end, end);
-    }
+    void renderScripture().then(() => {
+      const input = document.querySelector('#scripture-unique-filter');
+      if (input) {
+        input.focus();
+        const end = input.value.length;
+        input.setSelectionRange(end, end);
+      }
+    });
   }
 });
 
@@ -1893,24 +1943,26 @@ document.addEventListener('input', (event) => {
   if (event.target.id === 'scripture-search') {
     state.scriptureSearch = event.target.value;
     const caret = event.target.selectionStart;
-    renderScripture();
-    const input = document.querySelector('#scripture-search');
-    if (input) {
-      input.focus();
-      const pos = caret ?? input.value.length;
-      input.setSelectionRange(pos, pos);
-    }
+    void renderScripture().then(() => {
+      const input = document.querySelector('#scripture-search');
+      if (input) {
+        input.focus();
+        const pos = caret ?? input.value.length;
+        input.setSelectionRange(pos, pos);
+      }
+    });
   }
   if (event.target.id === 'scripture-unique-filter') {
     state.scriptureUniqueFilter = event.target.value;
     const caret = event.target.selectionStart;
-    renderScripture();
-    const input = document.querySelector('#scripture-unique-filter');
-    if (input) {
-      input.focus();
-      const pos = caret ?? input.value.length;
-      input.setSelectionRange(pos, pos);
-    }
+    void renderScripture().then(() => {
+      const input = document.querySelector('#scripture-unique-filter');
+      if (input) {
+        input.focus();
+        const pos = caret ?? input.value.length;
+        input.setSelectionRange(pos, pos);
+      }
+    });
   }
 });
 
@@ -1925,6 +1977,13 @@ async function initialize() {
     const response = await fetch('data/study-data.json');
     if (!response.ok) throw new Error(`Study data returned ${response.status}`);
     state.data = await response.json();
+    const apiMeta = await probeApiBibleProvider();
+    if (apiMeta) {
+      state.scriptureProvider = createApiBibleProvider();
+    } else {
+      state.scriptureProvider = createLocalScriptureProvider(state.data);
+    }
+    state.scriptureSession = createScriptureSession(state.scriptureProvider, state.data);
     state.profileStore = loadProfileStore();
     persistProfiles();
     loadPreferences();

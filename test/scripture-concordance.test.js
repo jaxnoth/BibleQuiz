@@ -8,6 +8,7 @@ import {
 
 const chapters = [
   {
+    book: 'John',
     chapter: 1,
     verses: [
       { verse: 1, text: 'In the beginning was the Word, and the Word was with God.', reference: 'John 1:1' },
@@ -16,6 +17,7 @@ const chapters = [
     ],
   },
   {
+    book: 'John',
     chapter: 3,
     verses: [
       { verse: 16, text: 'For God so loved the world that he gave his one and only Son.', reference: 'John 3:16' },
@@ -32,6 +34,7 @@ const uniqueWords = [
 test('searchScripture finds a single word', () => {
   const results = searchScripture(chapters, 'light');
   assert.ok(results.length >= 2);
+  assert.ok(results.every((row) => row.book === 'John'));
   assert.ok(results.every((row) => /light/i.test(row.snippet) || row.verse === 4 || row.verse === 5));
 });
 

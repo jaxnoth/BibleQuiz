@@ -34,6 +34,7 @@ The app can be embedded with `http://localhost:3000/?embed=1`.
 ```text
 BibleQuiz/
   SourceMaterial/          Original quiz CSV, RTF banks, Scripture chapters
+  api/                     Azure Functions proxy for API.Bible (keys server-side)
   docs/                    Workshop, scoring, practice, quality guides
   scripts/                 Data generator and local server
   test/                    Game-logic tests
@@ -86,17 +87,37 @@ The workflow at `.github/workflows/azure-static-web-apps.yml`:
 
 1. Runs the data generator and tests.
 2. Deploys the `web/` directory without a build step.
-3. Creates preview environments for pull requests.
+3. Deploys the `api/` Azure Functions proxy (`api_location: api`).
+4. Creates preview environments for pull requests.
 
 Repository setup:
 
 1. Initialize this directory as a Git repository and push it to GitHub.
 2. Create or connect an Azure Static Web App.
 3. Add `AZURE_STATIC_WEB_APPS_API_TOKEN` to the GitHub repository secrets.
-4. Push to the `main` branch.
+4. In Azure Portal SWA Configuration, set `API_BIBLE_KEY` and `API_BIBLE_BIBLE_ID` (discover the NIV id once via `GET https://api.scripture.api.bible/v1/bibles` with your key).
+5. Push to the `main` branch.
 
-No client-side API keys are required.
+No client-side API keys are required. The browser calls only `/api/scripture/*`.
+
+### Local Scripture API
+
+Plain static preview (Local Scripture provider fallback):
+
+```powershell
+npm start
+```
+
+Proxy + app together (API provider when keys are set):
+
+```powershell
+copy api\local.settings.json.example api\local.settings.json
+# Edit api\local.settings.json - set API_BIBLE_KEY and API_BIBLE_BIBLE_ID
+npx @azure/static-web-apps-cli start web --api-location api
+```
+
+`api/local.settings.json` is gitignored.
 
 ## Content note
 
-The app displays the supplied quiz wording without attempting to replace or expand it. Confirm the authoritative translation and required copyright notice before public release. Full chapter text is not currently included, so question generation uses memory verses and unique-word references.
+The app displays the supplied quiz wording without attempting to replace or expand it. Confirm the authoritative translation and required copyright notice before public release. Bundled John 1-5 Scripture remains available as Local fallback; API.Bible text is never written into `study-data.json`.

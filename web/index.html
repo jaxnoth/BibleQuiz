@@ -52,5 +52,14 @@
     <noscript>
       <p class="noscript">Bible Quiz needs JavaScript enabled to run the games.</p>
     </noscript>
+    <script type="text/javascript" src="https://pkg.api.bible/fumsV3.min.js"></script>
+    <script>
+      window.fumsData = window.fumsData || [];
+      window.fums =
+        window.fums ||
+        function () {
+          window.fumsData.push(arguments);
+        };
+    </script>
   </body>
 </html>

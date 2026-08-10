@@ -66,7 +66,12 @@ test('scripture chapters cover enabled John 1-5 with sequential verses', () => {
       assert.ok(chapter.verses[index].text.length > 0);
     }
   }
-  assert.equal(data.metadata.distribution, 'internal-personal');
+  assert.equal(data.metadata.distribution, 'internal-team');
+  assert.equal(data.metadata.translation, 'NIV');
+  assert.equal(data.metadata.abbreviation, 'NIV');
+  assert.equal(data.metadata.source, 'bundled-study-data');
+  assert.equal(data.metadata.ipHolder, 'Biblica');
+  assert.equal(data.metadata.ipHolderUrl, 'https://www.biblica.com');
   assert.match(data.metadata.scriptureAttribution, /internal personal/i);
 });
 

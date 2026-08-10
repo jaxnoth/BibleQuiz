@@ -11,3 +11,6 @@ dist/
 Thumbs.db
 .vscode/
 .cursor/
+
+api/local.settings.json
+api/node_modules/

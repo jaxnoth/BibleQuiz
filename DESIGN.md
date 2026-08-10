@@ -6,7 +6,7 @@ Last updated: 2026-08-09
 
 Bible Quiz is a mobile-friendly collection of practice games for Bible quizzers studying the Gospel of John. It should feel related to Bible Bingo, work well in a classroom or church setting, and remain easy to expand as more study material is added.
 
-**Distribution:** Internal personal use for this ship. Public Scripture distribution requires translation permission and attribution review first. See `metadata.scriptureAttribution` and [docs/Quizmaster-Workshop.md](docs/Quizmaster-Workshop.md).
+**Distribution:** Immediate quiz-team / non-commercial use for this ship (`metadata.distribution: internal-team`). Public Scripture distribution requires translation permission and attribution review first. API.Bible (if added later) requires a secure backend proxy, FUMS, Biblica display rules, and API-driven attribution - see Scripture provider model below. See `metadata.scriptureAttribution` and [docs/Quizmaster-Workshop.md](docs/Quizmaster-Workshop.md).
 
 ## Guides
 
@@ -126,6 +126,59 @@ Match the Bible Bingo visual family:
 - Home CTA is **Read Scripture** (feature title remains Scripture).
 - Chapter reader with memory-verse bands and unique-word marks.
 - Concordance: free-text search in the current chapter plus a unique-word browser; results jump to the verse with a temporary highlight.
+- Scripture text is loaded through an async **ScriptureProvider**. The UI uses a **scripture-session** facade that joins provider text with study overlays.
+- Footer renders provider metadata (translation/abbreviation, attribution/copyright, source, and provider/IP-holder links when present). Do not hardcode final API.Bible/Biblica citation strings in the UI.
+
+## Scripture provider model
+
+BibleQuiz uses a replaceable Scripture provider architecture.
+
+Providers own:
+- Scripture text
+- Scripture search
+- chapter listing
+- source/translation/copyright metadata
+- provider capabilities and limits
+
+Study packs own:
+- memory verses
+- unique words
+- quiz questions
+- question type mappings
+- round quotas
+- practice overlays
+
+The Scripture session facade combines provider text with study-pack overlays for UI rendering.
+
+This separation exists so BibleQuiz can support bundled local Scripture today and API-backed Scripture later without rewriting the Scripture reader, concordance, or highlight UI.
+
+BibleQuiz optimizes for replaceable Scripture sources and provider-enforced license constraints, not for scattered UI checks or manual verse-count exposure rules.
+
+Flow: `UI -> scripture-session.js -> ScriptureProvider` (`LocalScriptureProvider` or `ApiBibleProvider` via `/api/scripture/*` proxy).
+
+Prefer API when `/api/scripture/metadata` succeeds; otherwise fall back to Local (offline / plain `npm start`).
+
+Shared metadata shape (both providers): `provider`, `source`, `translation`, `abbreviation`, `copyright`, `copyrightHtml`, `scriptureAttribution`, `distribution`, `ipHolder`, `ipHolderUrl`, `providerUrl`, `requiresBiblicaLink`, `capabilities`, `limits`.
+
+`ApiBibleProvider` is translation-agnostic: IP holder, Biblica flags, and limits come from the proxy metadata endpoint (server `translation-policy.js`), not client hardcodes.
+
+FUMS: provider returns `fumsToken`; `scripture-session` reports views via the official tracker. Retrieval and tracking stay separate.
+
+Visible-content limits: session exposes `validateVisibleContent` / `canRender` for future UI. V1 single-chapter reader does not block on those limits.
+
+## API.Bible / Biblica requirements
+
+API.Bible keys must never appear in browser JavaScript. The Azure Functions proxy under `api/` holds `API_BIBLE_KEY` and `API_BIBLE_BIBLE_ID`.
+
+Requirements reflected in architecture:
+- FUMS via session when `fumRequired` / tokens are present
+- API.Bible attribution and hyperlink from provider metadata (`providerUrl`, `requiresAttributionLink`)
+- IP-holder copyright metadata and Biblica link when `requiresBiblicaLink` / `ipHolderUrl` are set by the proxy
+- Do not modify Scripture text
+- Do not use copyrighted Scripture for AI/LLM training, personalized AI/ML, or TTS unless separately licensed
+- Do not export API-fetched Scripture into `study-data.json`
+- Prefer no persistent Scripture cache; session memory only in V1
+- Surface translation-specific limits in metadata; enforce in UI only when a view can exceed them
 
 ### Verse Scramble
 
@@ -175,7 +228,21 @@ scriptureChapters[]
   book
   chapter
   verses[] { verse, text, reference }
+
+metadata (Scripture-related)
+  translation
+  abbreviation
+  source
+  distribution
+  scriptureAttribution
+  copyright
+  copyrightHtml
+  ipHolder
+  ipHolderUrl
+  providerUrl
 ```
+
+Provider runtime metadata also exposes `provider`, `capabilities`, and `limits` (see LocalScriptureProvider defaults in `web/js/scripture-provider.js`).
 
 Only records from enabled chapters are exposed in the first release. The importer must tolerate whitespace and punctuation issues in source CSV files, decode the supplied RTF question banks, parse Scripture markdown under `SourceMaterial/Scripture/`, and make future chapter additions data-only work. Stats keys stay on `typeCode`; UI labels use `typeName` (Context for `X`).
 
@@ -184,6 +251,8 @@ Only records from enabled chapters are exposed in the first release. The importe
 - Semantic HTML, CSS, and modern JavaScript modules.
 - No runtime framework or server dependency.
 - Local JSON/JavaScript study data.
+- Scripture retrieval is provider-based (`createLocalScriptureProvider` or `createApiBibleProvider`); quiz overlays stay on study data. Consumers use `UI -> scripture-session -> provider` only. Prefer API when the `/api/scripture` proxy is available.
+- Azure Functions under `api/` hold the API.Bible key; browser never sees it.
 - Browser `localStorage` for preferences and lightweight progress.
 - Service worker and web manifest for installable/offline use.
 - Node scripts for source-data validation and generation.

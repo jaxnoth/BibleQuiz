@@ -7,6 +7,7 @@
   "scripts": {
     "generate:data": "node scripts/generate-study-data.mjs",
     "start": "node scripts/serve.mjs",
+    "start:swa": "npx --yes @azure/static-web-apps-cli start web --api-location api",
     "test": "node --test"
   },
   "engines": {

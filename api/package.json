@@ -1,0 +1,10 @@
+{
+  "name": "bible-quiz-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Azure Functions proxy for API.Bible (keys stay server-side)",
+  "main": "unused",
+  "engines": {
+    "node": ">=20"
+  }
+}
