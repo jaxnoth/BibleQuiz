@@ -98,6 +98,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Generate puzzles from selected unique words.
 - [x] Add touch, mouse, and keyboard selection.
 - [x] Add difficulty settings, reveal, and regeneration.
+- [x] Quality-gated placer (Trivia lessons): direction mix, crossing-only shares, uniqueness, letter-budget sizing.
 
 ### Fill in the blank
 
@@ -105,6 +106,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 - [x] Add difficulty, hints, checking, and reveal.
 - [x] Normalize typed answers for fair checking.
 - [x] Progressive blank-ratio slider (0% none, 1-99% eligible words, 100% all words).
+- [x] Blank-ratio changes update the verse panel in place (avoid full re-render / ghost click to All games).
 
 ### Verse Scramble
 

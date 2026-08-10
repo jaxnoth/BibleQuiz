@@ -283,6 +283,7 @@ Only records from enabled chapters are exposed in the first release. The importe
 - Memory verse games favor verses with lower mastery.
 - Situation Challenge favors weak or unseen Situation questions.
 - Word Search favors less-practiced unique words.
+- Word Search uses an interactive square grid (not a printable silhouette). Placement quality follows Trivia lessons: all eight directions with a diagonal mix, letter sharing only at true crossings, uniqueness after filler letters, regenerate/best-of until gates pass, and grid size from a ~2.1 letter-cell budget clamped by Easy/Medium/Hard bands.
 - Mastered material remains eligible so it returns periodically for review.
 
 ### Storage limitations

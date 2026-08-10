@@ -1,4 +1,4 @@
-const cacheName = 'bible-quiz-v11';
+const cacheName = 'bible-quiz-v13';
 const assets = [
   './',
   './index.html',

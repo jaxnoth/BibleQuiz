@@ -5,6 +5,7 @@ import {
   createVerseScramble,
   createWordSearch,
   normalizeAnswer,
+  WORD_SEARCH_DIFFICULTY,
 } from './game-engine.js';
 import {
   adaptiveShuffle,
@@ -62,6 +63,7 @@ const state = {
   jeopardyMode: 'official',
   teams: [0, 0],
   wordSearch: null,
+  wordSearchDifficulty: 'medium',
   wordSearchStart: null,
   foundWords: new Set(),
   blank: null,
@@ -887,6 +889,53 @@ function refreshBlankSameVerse() {
   state.blank = createBlankQuestion(state.blank.verse, state.blankRatio);
 }
 
+function blankVerseMarkup(words, answers) {
+  if (answers.size === 0) return escapeHtml(words.join(' '));
+  return words
+    .map((word, index) =>
+      answers.has(index)
+        ? `<label>
+                  <span class="sr-only">Missing word ${index + 1}</span>
+                  <input class="blank-input" type="text" data-blank-index="${index}" autocomplete="off">
+                </label>`
+        : escapeHtml(word),
+    )
+    .join(' ');
+}
+
+function syncBlankRatioChrome(slider = document.querySelector('#blank-ratio')) {
+  const percent = Math.round(state.blankRatio * 100);
+  const label = document.querySelector('#blank-ratio-label');
+  if (label) label.textContent = `${percent}% blanks`;
+  if (!slider) return;
+  slider.value = String(percent);
+  slider.setAttribute('aria-valuenow', String(percent));
+  slider.setAttribute('aria-valuetext', `${percent} percent blanks`);
+}
+
+// Update blanks without replacing the slider. Full re-render on change lets the
+// follow-up click land on "All games" after the thumb is destroyed.
+function syncFillBlankPanel() {
+  if (!state.blank) return;
+  const { verse, words, answers } = state.blank;
+  const reference = document.querySelector('#blank-reference');
+  const verseEl = document.querySelector('#blank-verse');
+  const result = document.querySelector('#blank-result');
+  if (!verseEl) {
+    renderFillBlank();
+    return;
+  }
+  if (reference) reference.textContent = verse.reference;
+  verseEl.innerHTML = blankVerseMarkup(words, answers);
+  if (result) result.innerHTML = '';
+  document.querySelectorAll('[data-action="blank-check"], [data-action="blank-hint"], [data-action="blank-reveal"]').forEach(
+    (button) => {
+      button.disabled = answers.size === 0;
+    },
+  );
+  syncBlankRatioChrome();
+}
+
 function renderFillBlank() {
   if (!state.blank) newBlank();
   const { verse, words, answers } = state.blank;
@@ -913,22 +962,9 @@ function renderFillBlank() {
         </label>
         <button type="button" data-action="blank-new">New verse</button>
       </div>
-      <p class="eyebrow">${escapeHtml(verse.reference)}</p>
-      <div class="blank-verse">
-        ${
-          answers.size === 0
-            ? escapeHtml(words.join(' '))
-            : words
-                .map((word, index) =>
-                  answers.has(index)
-                    ? `<label>
-                  <span class="sr-only">Missing word ${index + 1}</span>
-                  <input class="blank-input" type="text" data-blank-index="${index}" autocomplete="off">
-                </label>`
-                    : escapeHtml(word),
-                )
-                .join(' ')
-        }
+      <p id="blank-reference" class="eyebrow">${escapeHtml(verse.reference)}</p>
+      <div id="blank-verse" class="blank-verse">
+        ${blankVerseMarkup(words, answers)}
       </div>
       <div id="blank-result" aria-live="polite"></div>
       <div class="controls">
@@ -1035,18 +1071,22 @@ function openClue(column, row) {
 }
 
 function wordSearchSettings() {
-  const difficulty = document.querySelector('#word-difficulty')?.value ?? 'medium';
+  const difficulty =
+    document.querySelector('#word-difficulty')?.value ?? state.wordSearchDifficulty ?? 'medium';
+  const band = WORD_SEARCH_DIFFICULTY[difficulty] ?? WORD_SEARCH_DIFFICULTY.medium;
   return {
     difficulty,
-    size: { easy: 11, medium: 14, hard: 17 }[difficulty],
-    count: { easy: 7, medium: 10, hard: 13 }[difficulty],
+    count: band.count,
+    minSize: band.minSize,
+    maxSize: band.maxSize,
   };
 }
 
 function newWordSearch() {
-  const { size, count } = wordSearchSettings();
+  const { difficulty, count, minSize, maxSize } = wordSearchSettings();
+  state.wordSearchDifficulty = difficulty;
   const words = adaptiveShuffle(filteredData().uniqueWords, 'uniqueWords', activeProfile());
-  state.wordSearch = createWordSearch(words, size, count);
+  state.wordSearch = createWordSearch(words, { wordCount: count, minSize, maxSize, difficulty });
   state.wordSearchStart = null;
   state.foundWords = new Set();
 }
@@ -1065,9 +1105,9 @@ function renderWordSearch() {
         <label class="field">
           Difficulty
           <select id="word-difficulty">
-            <option value="easy"${puzzle.size === 11 ? ' selected' : ''}>Easy</option>
-            <option value="medium"${puzzle.size === 14 ? ' selected' : ''}>Medium</option>
-            <option value="hard"${puzzle.size === 17 ? ' selected' : ''}>Hard</option>
+            <option value="easy"${state.wordSearchDifficulty === 'easy' ? ' selected' : ''}>Easy</option>
+            <option value="medium"${state.wordSearchDifficulty === 'medium' ? ' selected' : ''}>Medium</option>
+            <option value="hard"${state.wordSearchDifficulty === 'hard' ? ' selected' : ''}>Hard</option>
           </select>
         </label>
         <button type="button" data-action="word-new">New puzzle</button>
@@ -1514,7 +1554,8 @@ function handleWordCell(button) {
 
 document.addEventListener('click', (event) => {
   const target = event.target.closest('button, [data-route]');
-  if (!target) return;
+  // Ignore ghost clicks after a control was removed/replaced mid gesture.
+  if (!target?.isConnected) return;
 
   if (target.dataset.route) routeTo(target.dataset.route);
   if (target.dataset.action === 'home') routeTo('home');
@@ -1865,10 +1906,9 @@ document.addEventListener('change', async (event) => {
   if (event.target.id === 'blank-ratio') {
     state.blankRatio = Number(event.target.value) / 100;
     savePreferences();
-    const label = document.querySelector('#blank-ratio-label');
-    if (label) label.textContent = `${Math.round(state.blankRatio * 100)}% blanks`;
+    syncBlankRatioChrome(event.target);
     refreshBlankSameVerse();
-    renderFillBlank();
+    syncFillBlankPanel();
   }
   if (event.target.id === 'flash-deck') {
     state.flashDeck = event.target.value;
@@ -1948,13 +1988,7 @@ document.addEventListener('change', async (event) => {
 document.addEventListener('input', (event) => {
   if (event.target.id === 'blank-ratio') {
     state.blankRatio = Number(event.target.value) / 100;
-    const label = document.querySelector('#blank-ratio-label');
-    if (label) label.textContent = `${Math.round(state.blankRatio * 100)}% blanks`;
-    event.target.setAttribute('aria-valuenow', String(Math.round(state.blankRatio * 100)));
-    event.target.setAttribute(
-      'aria-valuetext',
-      `${Math.round(state.blankRatio * 100)} percent blanks`,
-    );
+    syncBlankRatioChrome(event.target);
   }
   if (event.target.id === 'scripture-search') {
     state.scriptureSearch = event.target.value;

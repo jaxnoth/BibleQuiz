@@ -7,8 +7,12 @@ import {
   createJeopardyBoard,
   createVerseScramble,
   createWordSearch,
+  countWordInGrid,
   normalizeAnswer,
   shuffle,
+  wordSearchGridSize,
+  WORD_SEARCH_DIFFICULTY,
+  WORD_SEARCH_LETTER_CELL_RATIO,
 } from '../web/js/game-engine.js';
 
 const verses = [
@@ -128,4 +132,69 @@ test('word search creates a filled square grid', () => {
   assert.equal(puzzle.grid.length, 10);
   assert.ok(puzzle.grid.every((row) => row.length === 10 && row.every(Boolean)));
   assert.ok(puzzle.placements.length > 0);
+});
+
+test('wordSearchGridSize uses letter-cell budget within difficulty bands', () => {
+  assert.equal(WORD_SEARCH_LETTER_CELL_RATIO, 2.1);
+  const size = wordSearchGridSize([8, 8, 7, 7, 6, 6, 5], WORD_SEARCH_DIFFICULTY.medium);
+  assert.ok(size >= WORD_SEARCH_DIFFICULTY.medium.minSize);
+  assert.ok(size <= WORD_SEARCH_DIFFICULTY.medium.maxSize);
+});
+
+test('word search places every requested word exactly once without collinear shares', () => {
+  const pool = [
+    { word: 'LIGHT' },
+    { word: 'WORLD' },
+    { word: 'TRUTH' },
+    { word: 'GRACE' },
+    { word: 'PEACE' },
+    { word: 'FAITH' },
+    { word: 'WATER' },
+    { word: 'BREAD' },
+    { word: 'STONE' },
+    { word: 'VOICE' },
+    { word: 'HEART' },
+    { word: 'GLORY' },
+    { word: 'POWER' },
+  ];
+  let value = 0.17;
+  const random = () => {
+    value = (value * 1.6180339887) % 1;
+    return value;
+  };
+  const puzzle = createWordSearch(pool, { difficulty: 'medium' }, random);
+  assert.equal(puzzle.placements.length, WORD_SEARCH_DIFFICULTY.medium.count);
+  assert.ok(puzzle.grid.every((row) => row.every(Boolean)));
+  for (const { word } of puzzle.placements) {
+    assert.equal(countWordInGrid(puzzle.grid, word), 1, word);
+  }
+  assert.equal(puzzle.stats.collinearShares, 0);
+  assert.ok(
+    puzzle.quality === true || puzzle.stats.diagonalRatio >= 0.2,
+    'prefer full quality; soft-pass still keeps a usable diagonal mix',
+  );
+});
+
+test('word search options form derives size from difficulty bands', () => {
+  const pool = [
+    { word: 'FULLNESS' },
+    { word: 'BETHESDA' },
+    { word: 'WITNESS' },
+    { word: 'DISCIPLE' },
+    { word: 'PROPHET' },
+    { word: 'TEMPLE' },
+    { word: 'SPIRIT' },
+    { word: 'KINGDOM' },
+    { word: 'SERVANT' },
+    { word: 'MESSIAH' },
+  ];
+  let value = 0.31;
+  const random = () => {
+    value = (value * 1.4142135623) % 1;
+    return value;
+  };
+  const puzzle = createWordSearch(pool, { difficulty: 'easy' }, random);
+  assert.ok(puzzle.size >= WORD_SEARCH_DIFFICULTY.easy.minSize);
+  assert.ok(puzzle.size <= WORD_SEARCH_DIFFICULTY.easy.maxSize);
+  assert.equal(puzzle.placements.length, WORD_SEARCH_DIFFICULTY.easy.count);
 });
