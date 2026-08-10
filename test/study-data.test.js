@@ -49,6 +49,14 @@ test('quiz practice questions expose typeCode and Context typeName for X', () =>
   assert.ok(contextQuestions.every((question) => question.typeName === 'Context'));
 });
 
+test('memory verses include full season jump words; practice stays on enabled chapters', () => {
+  const enabled = new Set(data.metadata.enabledChapters);
+  assert.ok(data.memoryVerses.length > 22);
+  assert.ok(data.memoryVerses.every((verse) => verse.jumpWords && verse.jumpWords.length > 0));
+  assert.ok(data.memoryVerses.some((verse) => verse.chapter > 5));
+  assert.ok(data.uniqueWords.every((record) => enabled.has(record.chapter)));
+});
+
 test('scripture chapters cover enabled John 1-5 with sequential verses', () => {
   assert.ok(Array.isArray(data.scriptureChapters));
   assert.deepEqual(

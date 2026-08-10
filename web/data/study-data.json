@@ -12,7 +12,7 @@
     "scriptureBookChapters": {
       "John": 21
     },
-    "generatedAt": "2026-08-10T03:36:25.601Z",
+    "generatedAt": "2026-08-10T03:52:55.314Z",
     "sourceFiles": [
       "memory-verses-2026-27.csv",
       "unique-words-2026-27.csv",
@@ -243,6 +243,537 @@
       "verseEnd": 40,
       "jumpWords": "You study",
       "text": "You study the Scriptures diligently because you think that in them you have eternal life. These are the very Scriptures that testify about me, yet you refuse to come to me to have life."
+    },
+    {
+      "reference": "John 6:27",
+      "book": "John",
+      "chapter": 6,
+      "verseStart": 27,
+      "verseEnd": 27,
+      "jumpWords": "Do not work",
+      "text": "Do not work for food that spoils, but for food that endures to eternal life, which the Son of Man will give you. For on him God the Father has placed his seal of approval.”"
+    },
+    {
+      "reference": "John 6:35",
+      "book": "John",
+      "chapter": 6,
+      "verseStart": 35,
+      "verseEnd": 35,
+      "jumpWords": "Then Jesus declared",
+      "text": "Then Jesus declared, “I am the bread of life. Whoever comes to me will never go hungry, and whoever believes in me will never be thirsty."
+    },
+    {
+      "reference": "John 6:40",
+      "book": "John",
+      "chapter": 6,
+      "verseStart": 40,
+      "verseEnd": 40,
+      "jumpWords": "For my",
+      "text": "For my Father’s will is that everyone who looks to the Son and believes in him shall have eternal life, and I will raise them up at the last day.”"
+    },
+    {
+      "reference": "John 6:44",
+      "book": "John",
+      "chapter": 6,
+      "verseStart": 44,
+      "verseEnd": 44,
+      "jumpWords": "No",
+      "text": "No one can come to me unless the Father who sent me draws them, and I will raise them up at the last day."
+    },
+    {
+      "reference": "John 6:68-69",
+      "book": "John",
+      "chapter": 6,
+      "verseStart": 68,
+      "verseEnd": 69,
+      "jumpWords": "Simon",
+      "text": "Simon Peter answered him, “Lord, to whom shall we go? You have the words of eternal life. We have come to believe and to know that you are the Holy One of God.”"
+    },
+    {
+      "reference": "John 7:24",
+      "book": "John",
+      "chapter": 7,
+      "verseStart": 24,
+      "verseEnd": 24,
+      "jumpWords": "Stop",
+      "text": "Stop judging by mere appearances, but instead judge correctly.”"
+    },
+    {
+      "reference": "John 7:37-38",
+      "book": "John",
+      "chapter": 7,
+      "verseStart": 37,
+      "verseEnd": 38,
+      "jumpWords": "On",
+      "text": "On the last and greatest day of the festival, Jesus stood and said in a loud voice, “Let anyone who is thirsty come to me and drink. Whoever believes in me, as Scripture has said, rivers of living water will flow from within them.”"
+    },
+    {
+      "reference": "John 8:7",
+      "book": "John",
+      "chapter": 8,
+      "verseStart": 7,
+      "verseEnd": 7,
+      "jumpWords": "When they kept",
+      "text": "When they kept on questioning him, he straightened up and said to them, “Let any one of you who is without sin be the first to throw a stone at her.”"
+    },
+    {
+      "reference": "John 8:10-11",
+      "book": "John",
+      "chapter": 8,
+      "verseStart": 10,
+      "verseEnd": 11,
+      "jumpWords": "Jesus straightened",
+      "text": "Jesus straightened up and asked her, “Woman, where are they? Has no one condemned you?” “No one, sir,” she said. “Then neither do I condemn you,” Jesus declared. “Go now and leave your life of sin.”"
+    },
+    {
+      "reference": "John 8:12",
+      "book": "John",
+      "chapter": 8,
+      "verseStart": 12,
+      "verseEnd": 12,
+      "jumpWords": "When Jesus",
+      "text": "When Jesus spoke again to the people, he said, “I am the light of the world. Whoever follows me will never walk in darkness, but will have the light of life.”"
+    },
+    {
+      "reference": "John 8:31-32",
+      "book": "John",
+      "chapter": 8,
+      "verseStart": 31,
+      "verseEnd": 32,
+      "jumpWords": "To",
+      "text": "To the Jews who had believed him, Jesus said, “If you hold to my teaching, you are really my disciples. Then you will know the truth, and the truth will set you free.”"
+    },
+    {
+      "reference": "John 8:34-36",
+      "book": "John",
+      "chapter": 8,
+      "verseStart": 34,
+      "verseEnd": 36,
+      "jumpWords": "Jesus replied",
+      "text": "Jesus replied, “Very truly I tell you, everyone who sins is a slave to sin. Now a slave has no permanent place in the family, but a son belongs to it forever. So if the Son sets you free, you will be free indeed."
+    },
+    {
+      "reference": "John 9:2-3",
+      "book": "John",
+      "chapter": 9,
+      "verseStart": 2,
+      "verseEnd": 3,
+      "jumpWords": "His",
+      "text": "His disciples asked him, “Rabbi, who sinned, this man or his parents, that he was born blind?” “Neither this man nor his parents sinned,” said Jesus, “but this happened so that the works of God might be displayed in him."
+    },
+    {
+      "reference": "John 9:4-5",
+      "book": "John",
+      "chapter": 9,
+      "verseStart": 4,
+      "verseEnd": 5,
+      "jumpWords": "As long",
+      "text": "As long as it is day, we must do the works of him who sent me. Night is coming, when no one can work. While I am in the world, I am the light of the world.”"
+    },
+    {
+      "reference": "John 10:9",
+      "book": "John",
+      "chapter": 10,
+      "verseStart": 9,
+      "verseEnd": 9,
+      "jumpWords": "I am the gate",
+      "text": "I am the gate; whoever enters through me will be saved. They will come in and go out, and find pasture."
+    },
+    {
+      "reference": "John 10:10",
+      "book": "John",
+      "chapter": 10,
+      "verseStart": 10,
+      "verseEnd": 10,
+      "jumpWords": "The thief",
+      "text": "The thief comes only to steal and kill and destroy; I have come that they may have life, and have it to the full."
+    },
+    {
+      "reference": "John 10:11",
+      "book": "John",
+      "chapter": 10,
+      "verseStart": 11,
+      "verseEnd": 11,
+      "jumpWords": "I am the good",
+      "text": "I am the good shepherd. The good shepherd lays down his life for the sheep."
+    },
+    {
+      "reference": "John 10:17-18",
+      "book": "John",
+      "chapter": 10,
+      "verseStart": 17,
+      "verseEnd": 18,
+      "jumpWords": "The",
+      "text": "The reason my Father loves me is that I lay down my life - only to take it up again. No one takes it from me, but I lay it down of my own accord. I have authority to lay it down and authority to take it up again. This command I received from my Father.”"
+    },
+    {
+      "reference": "John 10:27-28",
+      "book": "John",
+      "chapter": 10,
+      "verseStart": 27,
+      "verseEnd": 28,
+      "jumpWords": "My sheep",
+      "text": "My sheep listen to my voice; I know them, and they follow me. I give them eternal life, and they shall never perish; no one will snatch them out of my hand."
+    },
+    {
+      "reference": "John 11:3-4",
+      "book": "John",
+      "chapter": 11,
+      "verseStart": 3,
+      "verseEnd": 4,
+      "jumpWords": "So",
+      "text": "So the sisters sent word to Jesus, “Lord, the one you love is sick.” When he heard this, Jesus said, “This sickness will not end in death. No, it is for God’s glory so that God’s Son may be glorified through it.”"
+    },
+    {
+      "reference": "John 11:25-26",
+      "book": "John",
+      "chapter": 11,
+      "verseStart": 25,
+      "verseEnd": 26,
+      "jumpWords": "Jesus said",
+      "text": "Jesus said to her, “I am the resurrection and the life. The one who believes in me will live, even though they die; and whoever lives by believing in me will never die. Do you believe this?”"
+    },
+    {
+      "reference": "John 11:50",
+      "book": "John",
+      "chapter": 11,
+      "verseStart": 50,
+      "verseEnd": 50,
+      "jumpWords": "You",
+      "text": "You do not realize that it is better for you that one man die for the people than that the whole nation perish.”"
+    },
+    {
+      "reference": "John 12:13",
+      "book": "John",
+      "chapter": 12,
+      "verseStart": 13,
+      "verseEnd": 13,
+      "jumpWords": "They",
+      "text": "They took palm branches and went out to meet him, shouting, “Hosanna!” “Blessed is he who comes in the name of the Lord!” “Blessed is the king of Israel!”"
+    },
+    {
+      "reference": "John 12:24-25",
+      "book": "John",
+      "chapter": 12,
+      "verseStart": 24,
+      "verseEnd": 25,
+      "jumpWords": "Very",
+      "text": "Very truly I tell you, unless a kernel of wheat falls to the ground and dies, it remains only a single seed. But if it dies, it produces many seeds. Anyone who loves their life will lose it, while anyone who hates their life in this world will keep it for eternal life."
+    },
+    {
+      "reference": "John 13:1",
+      "book": "John",
+      "chapter": 13,
+      "verseStart": 1,
+      "verseEnd": 1,
+      "jumpWords": "It",
+      "text": "It was just before the Passover Festival. Jesus knew that the hour had come for him to leave this world and go to the Father. Having loved his own who were in the world, he loved them to the end."
+    },
+    {
+      "reference": "John 13:13-14",
+      "book": "John",
+      "chapter": 13,
+      "verseStart": 13,
+      "verseEnd": 14,
+      "jumpWords": "You call",
+      "text": "You call me ‘Teacher’ and ‘Lord,’ and rightly so, for that is what I am. Now that I, your Lord and Teacher, have washed your feet, you also should wash one another’s feet."
+    },
+    {
+      "reference": "John 13:34-35",
+      "book": "John",
+      "chapter": 13,
+      "verseStart": 34,
+      "verseEnd": 35,
+      "jumpWords": "A",
+      "text": "A new command I give you: Love one another. As I have loved you, so you must love one another. By this everyone will know that you are my disciples, if you love one another."
+    },
+    {
+      "reference": "John 14:1",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 1,
+      "verseEnd": 1,
+      "jumpWords": "Do not let",
+      "text": "Do not let your hearts be troubled. You believe in God; believe also in me."
+    },
+    {
+      "reference": "John 14:2-3",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 2,
+      "verseEnd": 3,
+      "jumpWords": "My Father's",
+      "text": "My Father's house has many rooms; if that were not so, would I have told you that I am going there to prepare a place for you? And if I go and prepare a place for you, I will come back and take you to be with me that you also may be where I am."
+    },
+    {
+      "reference": "John 14:6-7",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 6,
+      "verseEnd": 7,
+      "jumpWords": "Jesus answered, \"I",
+      "text": "Jesus answered, “I am the way and the truth and the life. No one comes to the Father except through me. If you really know me, you will know my Father as well. From now on, you do know him and have seen him.”"
+    },
+    {
+      "reference": "John 14:16-17",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 16,
+      "verseEnd": 17,
+      "jumpWords": "And",
+      "text": "And I will ask the Father, and he will give you another advocate to help you and be with you forever- the Spirit of truth. The world cannot accept him, because it neither sees him nor knows him. But you know him, for he lives with you and will be in you."
+    },
+    {
+      "reference": "John 14:26",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 26,
+      "verseEnd": 26,
+      "jumpWords": "But the",
+      "text": "But the Advocate, the Holy Spirit, whom the Father will send in my name, will teach you all things and will remind you of everything I have said to you."
+    },
+    {
+      "reference": "John 14:27",
+      "book": "John",
+      "chapter": 14,
+      "verseStart": 27,
+      "verseEnd": 27,
+      "jumpWords": "Peace",
+      "text": "Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid."
+    },
+    {
+      "reference": "John 15:5",
+      "book": "John",
+      "chapter": 15,
+      "verseStart": 5,
+      "verseEnd": 5,
+      "jumpWords": "I am the vine",
+      "text": "I am the vine; you are the branches. If you remain in me and I in you, you will bear much fruit; apart from me you can do nothing."
+    },
+    {
+      "reference": "John 15:9-10",
+      "book": "John",
+      "chapter": 15,
+      "verseStart": 9,
+      "verseEnd": 10,
+      "jumpWords": "As the",
+      "text": "As the Father has loved me, so have I loved you. Now remain in my love. If you keep my commands, you will remain in my love, just as I have kept my Father’s commands and remain in his love."
+    },
+    {
+      "reference": "John 15:13-14",
+      "book": "John",
+      "chapter": 15,
+      "verseStart": 13,
+      "verseEnd": 14,
+      "jumpWords": "Greater",
+      "text": "Greater love has no one than this: to lay down one’s life for one’s friends. You are my friends if you do what I command."
+    },
+    {
+      "reference": "John 16:7",
+      "book": "John",
+      "chapter": 16,
+      "verseStart": 7,
+      "verseEnd": 7,
+      "jumpWords": "But very",
+      "text": "But very truly I tell you, it is for your good that I am going away. Unless I go away, the Advocate will not come to you; but if I go, I will send him to you."
+    },
+    {
+      "reference": "John 16:8",
+      "book": "John",
+      "chapter": 16,
+      "verseStart": 8,
+      "verseEnd": 8,
+      "jumpWords": "When he comes",
+      "text": "When he comes, he will prove the world to be in the wrong about sin and righteousness and judgment:"
+    },
+    {
+      "reference": "John 16:13",
+      "book": "John",
+      "chapter": 16,
+      "verseStart": 13,
+      "verseEnd": 13,
+      "jumpWords": "But when",
+      "text": "But when he, the Spirit of truth, comes, he will guide you into all the truth. He will not speak on his own; he will speak only what he hears, and he will tell you what is yet to come."
+    },
+    {
+      "reference": "John 16:24",
+      "book": "John",
+      "chapter": 16,
+      "verseStart": 24,
+      "verseEnd": 24,
+      "jumpWords": "Until",
+      "text": "Until now you have not asked for anything in my name. Ask and you will receive, and your joy will be complete."
+    },
+    {
+      "reference": "John 16:33",
+      "book": "John",
+      "chapter": 16,
+      "verseStart": 33,
+      "verseEnd": 33,
+      "jumpWords": "I have",
+      "text": "I have told you these things, so that in me you may have peace. In this world you will have trouble. But take heart! I have overcome the world."
+    },
+    {
+      "reference": "John 17:1",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 1,
+      "verseEnd": 1,
+      "jumpWords": "After Jesus",
+      "text": "After Jesus said this, he looked toward heaven and prayed: “Father, the hour has come. Glorify your Son, that your Son may glorify you."
+    },
+    {
+      "reference": "John 17:3",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 3,
+      "verseEnd": 3,
+      "jumpWords": "Now",
+      "text": "Now this is eternal life: that they know you, the only true God, and Jesus Christ, whom you have sent."
+    },
+    {
+      "reference": "John 17:15-16",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 15,
+      "verseEnd": 16,
+      "jumpWords": "My prayer is not that",
+      "text": "My prayer is not that you take them out of the world but that you protect them from the evil one. They are not of the world, even as I am not of it."
+    },
+    {
+      "reference": "John 17:17",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 17,
+      "verseEnd": 17,
+      "jumpWords": "Sanctify",
+      "text": "Sanctify them by the truth; your word is truth."
+    },
+    {
+      "reference": "John 17:20-21",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 20,
+      "verseEnd": 21,
+      "jumpWords": "My prayer in not for",
+      "text": "My prayer is not for them alone. I pray also for those who will believe in me through their message, that all of them may be one, Father, just as you are in me and I am in you. May they also be in us so that the world may believe that you have sent me."
+    },
+    {
+      "reference": "John 17:24",
+      "book": "John",
+      "chapter": 17,
+      "verseStart": 24,
+      "verseEnd": 24,
+      "jumpWords": "Father",
+      "text": "Father, I want those you have given me to be with me where I am, and to see my glory, the glory you have given me because you loved me before the creation of the world."
+    },
+    {
+      "reference": "John 18:11",
+      "book": "John",
+      "chapter": 18,
+      "verseStart": 11,
+      "verseEnd": 11,
+      "jumpWords": "Jesus commanded",
+      "text": "Jesus commanded Peter, “Put your sword away! Shall I not drink the cup the Father has given me?”"
+    },
+    {
+      "reference": "John 18:36",
+      "book": "John",
+      "chapter": 18,
+      "verseStart": 36,
+      "verseEnd": 36,
+      "jumpWords": "Jesus said",
+      "text": "Jesus said, “My kingdom is not of this world. If it were, my servants would fight to prevent my arrest by the Jewish leaders. But now my kingdom is from another place.”"
+    },
+    {
+      "reference": "John 19:11",
+      "book": "John",
+      "chapter": 19,
+      "verseStart": 11,
+      "verseEnd": 11,
+      "jumpWords": "Jesus answered",
+      "text": "Jesus answered, “You would have no power over me if it were not given to you from above. Therefore the one who handed me over to you is guilty of a greater sin.”"
+    },
+    {
+      "reference": "John 19:17-18",
+      "book": "John",
+      "chapter": 19,
+      "verseStart": 17,
+      "verseEnd": 18,
+      "jumpWords": "Carrying",
+      "text": "Carrying his own cross, he went out to the place of the Skull (which in Aramaic is called Golgotha). There they crucified him, and with him two others - one on each side and Jesus in the middle."
+    },
+    {
+      "reference": "John 19:30",
+      "book": "John",
+      "chapter": 19,
+      "verseStart": 30,
+      "verseEnd": 30,
+      "jumpWords": "When he had",
+      "text": "When he had received the drink, Jesus said, “It is finished.” With that, he bowed his head and gave up his spirit."
+    },
+    {
+      "reference": "John 20:1",
+      "book": "John",
+      "chapter": 20,
+      "verseStart": 1,
+      "verseEnd": 1,
+      "jumpWords": "Early",
+      "text": "Early on the first day of the week, while it was still dark, Mary Magdalene went to the tomb and saw that the stone had been removed from the entrance."
+    },
+    {
+      "reference": "John 20:21-22",
+      "book": "John",
+      "chapter": 20,
+      "verseStart": 21,
+      "verseEnd": 22,
+      "jumpWords": "Again",
+      "text": "Again Jesus said, “Peace be with you! As the Father has sent me, I am sending you.” And with that he breathed on them and said, “Receive the Holy Spirit."
+    },
+    {
+      "reference": "John 20:29",
+      "book": "John",
+      "chapter": 20,
+      "verseStart": 29,
+      "verseEnd": 29,
+      "jumpWords": "Then Jesus told",
+      "text": "Then Jesus told him, “Because you have seen me, you have believed; blessed are those who have not seen and yet have believed.”"
+    },
+    {
+      "reference": "John 20:30-31",
+      "book": "John",
+      "chapter": 20,
+      "verseStart": 30,
+      "verseEnd": 31,
+      "jumpWords": "Jesus performed",
+      "text": "Jesus performed many other signs in the presence of his disciples, which are not recorded in this book. But these are written that you may believe that Jesus is the Messiah, the Son of God, and that by believing you may have life in his name."
+    },
+    {
+      "reference": "John 21:15",
+      "book": "John",
+      "chapter": 21,
+      "verseStart": 15,
+      "verseEnd": 15,
+      "jumpWords": "When they had",
+      "text": "When they had finished eating, Jesus said to Simon Peter, “Simon son of John, do you love me more than these?” “Yes, Lord,” he said, “you know that I love you.” Jesus said, “Feed my lambs.”"
+    },
+    {
+      "reference": "John 21:22",
+      "book": "John",
+      "chapter": 21,
+      "verseStart": 22,
+      "verseEnd": 22,
+      "jumpWords": "Jesus answered, If",
+      "text": "Jesus answered, “If I want him to remain alive until I return, what is that to you? You must follow me.”"
+    },
+    {
+      "reference": "John 21:25",
+      "book": "John",
+      "chapter": 21,
+      "verseStart": 25,
+      "verseEnd": 25,
+      "jumpWords": "Jesus did",
+      "text": "Jesus did many other things as well. If every one of them were written down, I suppose that even the whole world would not have room for the books that would be written."
     }
   ],
   "uniqueWords": [

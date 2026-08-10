@@ -139,11 +139,20 @@ assertUnique(
   'unique word and reference pair',
 );
 
-const memoryVerses = allMemoryVerses.filter((record) => enabledChapters.has(record.chapter));
+// Full season memory list (with jump words) for Scripture overlays across John 1-21.
+// Quiz / drill practice still filters to enabledChapters in the app.
+const memoryVerses = allMemoryVerses;
 const uniqueWords = allUniqueWords.filter((record) => enabledChapters.has(record.chapter));
 
 if (memoryVerses.length === 0 || uniqueWords.length === 0) {
   throw new Error('The enabled chapter range produced no study data.');
+}
+
+const practiceMemoryCount = memoryVerses.filter((record) =>
+  enabledChapters.has(record.chapter),
+).length;
+if (practiceMemoryCount === 0) {
+  throw new Error('No memory verses fall inside the enabled chapter range.');
 }
 
 const quizQuestions = officialQuestionSets.flat();
@@ -194,5 +203,5 @@ await writeFile(outputPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 
 const verseCount = scriptureChapters.reduce((total, chapter) => total + chapter.verses.length, 0);
 console.log(
-  `Generated ${path.relative(projectRoot, outputPath)} with ${memoryVerses.length} memory verses, ${uniqueWords.length} unique words, ${quizQuestions.length} quiz questions, and ${scriptureChapters.length} Scripture chapters (${verseCount} verses).`,
+  `Generated ${path.relative(projectRoot, outputPath)} with ${memoryVerses.length} memory verses (${practiceMemoryCount} in enabled chapters), ${uniqueWords.length} unique words, ${quizQuestions.length} quiz questions, and ${scriptureChapters.length} Scripture chapters (${verseCount} verses).`,
 );

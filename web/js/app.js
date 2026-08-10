@@ -91,6 +91,7 @@ const state = {
   situationScore: { correct: 0, total: 0 },
   scriptureChapter: 1,
   scriptureShowMemory: true,
+  scriptureShowJump: true,
   scriptureShowUnique: true,
   scriptureSearch: '',
   scriptureUniqueFilter: '',
@@ -199,16 +200,22 @@ function loadPreferences() {
   }
 }
 
+function enabledChapterSet() {
+  return new Set(state.data?.metadata?.enabledChapters ?? []);
+}
+
 function filteredData() {
+  const enabled = enabledChapterSet();
+  const practiceMemory = state.data.memoryVerses.filter((verse) => enabled.has(verse.chapter));
   if (state.chapter === 'all') {
     return {
-      memoryVerses: state.data.memoryVerses,
+      memoryVerses: practiceMemory,
       uniqueWords: state.data.uniqueWords,
     };
   }
   const chapter = Number(state.chapter);
   return {
-    memoryVerses: state.data.memoryVerses.filter((verse) => verse.chapter === chapter),
+    memoryVerses: practiceMemory.filter((verse) => verse.chapter === chapter),
     uniqueWords: state.data.uniqueWords.filter((record) => record.chapter === chapter),
   };
 }
@@ -250,7 +257,7 @@ function chapterOptions() {
 function renderHome() {
   const games = [
     ['quiz-practice', 'Q', 'Quiz Practice', 'Practice a 20-question round or continue without a limit.'],
-    ['scripture', '§', 'Scripture', 'Read John with memory-verse bands and unique-word highlights.'],
+    ['scripture', '§', 'Scripture', 'Read John with memory-verse, jump-word, and unique-word highlights.'],
     ['flashcards', '▣', 'Flash Cards', 'Review memory verses or official quiz questions.'],
     ['jeopardy', '★', 'Jeopardy', 'Play with official questions or study-drill categories.'],
     ['word-search', '⌕', 'Word Search', 'Find selected unique words hidden in a puzzle.'],
@@ -1247,6 +1254,7 @@ async function renderScripture() {
   const view = await session.getChapterView(book, state.scriptureChapter);
   const body = renderScriptureVerses(view.verses, view.memoryVerses, view.uniqueWords, {
     showMemory: state.scriptureShowMemory,
+    showJump: state.scriptureShowJump,
     showUnique: state.scriptureShowUnique,
     focusVerse: state.scriptureFocusVerse,
   });
@@ -1321,6 +1329,10 @@ async function renderScripture() {
           Memory verses
         </label>
         <label class="field checkbox-field">
+          <input id="scripture-jump" type="checkbox"${state.scriptureShowJump ? ' checked' : ''}>
+          Jump words
+        </label>
+        <label class="field checkbox-field">
           <input id="scripture-unique" type="checkbox"${state.scriptureShowUnique ? ' checked' : ''}>
           Unique words
         </label>
@@ -1373,6 +1385,7 @@ async function renderScripture() {
       </div>
       <div class="scripture-legend game-meta" aria-hidden="true">
         <span class="legend-memory">Memory verse</span>
+        <span class="legend-jump">Jump word</span>
         <span class="legend-unique">Unique word</span>
       </div>
       <article class="scripture-text" aria-label="${escapeHtml(book)} ${state.scriptureChapter}">
@@ -1898,6 +1911,10 @@ document.addEventListener('change', async (event) => {
   }
   if (event.target.id === 'scripture-memory') {
     state.scriptureShowMemory = event.target.checked;
+    void renderScripture();
+  }
+  if (event.target.id === 'scripture-jump') {
+    state.scriptureShowJump = event.target.checked;
     void renderScripture();
   }
   if (event.target.id === 'scripture-unique') {

@@ -27,7 +27,7 @@ The first release supports John 1-5 and includes:
 5. Fill-in-the-blank memory verse practice.
 6. Verse Scramble memory practice.
 7. Situation Challenge using official situation questions.
-8. Scripture chapter reader with memory-verse and unique-word highlights.
+8. Scripture chapter reader with memory-verse, jump-word, and unique-word highlights.
 
 The app is a static site with local study data. Core play does not require an API key or account.
 

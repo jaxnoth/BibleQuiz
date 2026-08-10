@@ -62,6 +62,7 @@ Workshop Reference / Finish + give reference is a memory-family quiz type (futur
 
 - [x] Ingest John 1-5 chapter text.
 - [x] Reader UI with memory-verse bands and unique-word highlights (escape-first).
+- [x] Jump-word highlights from memory-verses CSV (toggle + legend).
 - [x] Toggles for memory and unique highlights.
 - [x] Home CTA reads **Read Scripture** (card title stays Scripture).
 - [x] Concordance: free-text chapter search + unique-word browser with jump/highlight.
